@@ -40,9 +40,11 @@ export function BillingProvider({ initial, email, children }: { initial: Billing
     if (!dirty.current) return;
     dirty.current = false;
     setSaveState("saving");
-    const r = await saveData(latest.current);
+    let r: { ok: boolean; error?: string };
+    try { r = await saveData(latest.current); }
+    catch (e) { r = { ok: false, error: e instanceof Error ? e.message : "Could not reach the server" }; }
     if (r.ok) { setSaveState(dirty.current ? "saving" : "saved"); setSaveError(""); }
-    else { dirty.current = true; setSaveState("error"); setSaveError(r.error || "Could not save"); }
+    else { dirty.current = true; setSaveState("error"); setSaveError(r.error || "Could not save"); clearTimeout(timer.current); timer.current = setTimeout(flush, 15000); }
   }, []);
 
   const commit = useCallback((next: BillingData) => {

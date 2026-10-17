@@ -26,4 +26,4 @@ Features: GST invoices (CGST/SGST or IGST), amount in words, printable original/
 
 ## Data model
 
-Each user's data is one JSON document in `billing_data.data` (items, customers, invoices, stock ledger, settings). Changes are saved about a second after each edit. If the same account is open on two devices at once, the last save wins, so use one device at a time. Splitting this into separate tables is possible later without changing the screens.
+Each user's data is one JSON document in `billing_data.data` (items, customers, invoices, stock ledger, settings). Changes are saved about a second after each edit. If the same account is open on two devices at once, the last save wins, so use one device at a time. The whole document is sent on every save, capped at 4 MB (the Vercel request limit is 4.5 MB). In stress tests that is roughly 1,000 bills with a typical item and customer list, so a busy shop should move to per-record tables before then. A failed save shows "Not saved" in the sidebar and retries automatically.
