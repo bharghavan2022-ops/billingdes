@@ -71,7 +71,9 @@ export default function SettingsPage() {
           <div className="f"><label htmlFor="s-sign">Signature line text</label><input className="inp" id="s-sign" value={s.signLabel} onChange={(e) => setTop("signLabel", e.target.value)} /></div>
         </div></div>
       <div className="card"><h2>Stock and totals</h2>
-        <label className="row" style={{ marginBottom: 8 }}><input type="checkbox" checked={s.allowNegative} onChange={(e) => setTop("allowNegative", e.target.checked)} /> Allow billing more than the stock on hand</label>
+        <label className="row" style={{ marginBottom: 4 }}><input type="checkbox" checked={s.trackStock} onChange={(e) => setTop("trackStock", e.target.checked)} /> Track stock (bills reduce stock, low-stock alerts, stock history)</label>
+        <div className="small muted" style={{ margin: "0 0 10px 26px" }}>Off: billing only. Bills never touch stock and the stock screens are hidden. You can switch it on later.</div>
+        {s.trackStock && <label className="row" style={{ marginBottom: 8 }}><input type="checkbox" checked={s.allowNegative} onChange={(e) => setTop("allowNegative", e.target.checked)} /> Allow billing more than the stock on hand</label>}
         <label className="row"><input type="checkbox" checked={s.roundOff} onChange={(e) => setTop("roundOff", e.target.checked)} /> Round the total to the nearest rupee on new bills</label></div>
       <div className="card"><h2>Your data</h2>
         <div className="small muted" style={{ marginBottom: 12 }}>Your data is saved to your account and is available on any device you sign in on. A backup file is an extra copy you keep yourself.{db.meta.lastBackup ? " Last backup: " + new Date(db.meta.lastBackup).toLocaleString("en-IN") + "." : ""}</div>

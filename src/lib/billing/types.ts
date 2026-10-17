@@ -29,6 +29,8 @@ export interface Settings {
   bank: { holder: string; ifsc: string; acc: string; bank: string };
   prefix: string; nextNo: number; dueDays: number; notes: string; terms: string;
   signLabel: string; allowNegative: boolean; roundOff: boolean;
+  /** Off by default: bills do not touch stock and the stock screens are hidden. */
+  trackStock: boolean;
 }
 export interface BillingData {
   v: number; settings: Settings;

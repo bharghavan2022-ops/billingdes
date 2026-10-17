@@ -12,7 +12,7 @@ export function defaults(): BillingData {
       bank: { holder: "", ifsc: "", acc: "", bank: "" },
       prefix: "", nextNo: 1, dueDays: 7, notes: "",
       terms: "1. Goods once sold will not be taken back or exchanged\n2. All disputes are subject to local jurisdiction only",
-      signLabel: "Authorised Signature for", allowNegative: false, roundOff: false,
+      signLabel: "Authorised Signature for", allowNegative: false, roundOff: false, trackStock: false,
     },
     items: [], customers: [], invoices: [], ledger: [],
     meta: { lastBackup: null, sampleNote: false },
@@ -44,20 +44,34 @@ export function ensureItemCodes(db: BillingData) {
 }
 
 /**
- * Loads the standard catalogue (names only: no stock, rate, unit or tax). An item you already have with the same name keeps
- * its stock and details and simply takes the catalogue code. Safe to run more than once.
+ * Loads the standard catalogue: name, HSN and GST (no stock or rate; unit is left at the default). An item you already have with the
+ * same name keeps its details and takes the catalogue code. Catalogue items loaded earlier without HSN/GST get them filled in.
+ * Safe to run more than once.
  */
-export function addCatalogueItems(db: BillingData): { added: number; linked: number } {
+export function addCatalogueItems(db: BillingData): { added: number; linked: number; filled: number } {
   const reserved = new Set(CATALOGUE.map((c) => c.code));
-  let added = 0, linked = 0;
+  let added = 0, linked = 0, filled = 0;
   for (const c of CATALOGUE) {
-    if (db.items.some((i) => i.code === c.code)) continue;
+    const byCode = db.items.find((i) => i.code === c.code);
+    if (byCode) {
+      if (!byCode.hsn && !N(byCode.gst) && c.hsn) { byCode.hsn = c.hsn; byCode.gst = c.gst; filled++; }
+      continue;
+    }
     const same = db.items.find((i) => i.name.trim().toLowerCase() === c.name.trim().toLowerCase() && !reserved.has(i.code));
-    if (same) { same.code = c.code; linked++; continue; }
-    db.items.push({ id: uid(), code: c.code, name: c.name, alt: c.english, hsn: "", unit: "NOS", rate: 0, gst: 0, low: 0, stock: 0, active: true });
+    if (same) { same.code = c.code; if (!same.hsn && !N(same.gst)) { same.hsn = c.hsn; same.gst = c.gst; } linked++; continue; }
+    db.items.push({ id: uid(), code: c.code, name: c.name, alt: c.english, hsn: c.hsn, unit: "NOS", rate: 0, gst: c.gst, low: 0, stock: 0, active: true });
     added++;
   }
-  return { added, linked };
+  return { added, linked, filled };
+}
+
+/** True when the standard list has not been loaded, or loaded items are still missing their HSN/GST. */
+export function catalogueNeedsLoading(db: Pick<BillingData, "items">): boolean {
+  const byCode = new Map(db.items.map((i) => [i.code, i]));
+  return CATALOGUE.some((c) => {
+    const it = byCode.get(c.code);
+    return !it || (!it.hsn && !N(it.gst) && !!c.hsn);
+  });
 }
 
 export const itemById = (db: BillingData, id: string) => db.items.find((i) => i.id === id);

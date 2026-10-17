@@ -11,6 +11,7 @@ import { Dialog, ErrorBox } from "./dialog";
 export function ItemDialog({ id, preset, onClose, onSaved }: { id: string | null; preset?: Partial<Item>; onClose: () => void; onSaved?: (it: Item) => void }) {
   const { db, update, toast } = useBilling();
   const it = id ? itemById(db, id) : null;
+  const track = db.settings.trackStock;
   const v = it ?? { name: "", alt: "", hsn: "", unit: "NOS", rate: "", gst: 0, low: 0, ...preset };
   const [f, setF] = useState({ name: String(v.name), alt: String(v.alt), hsn: String(v.hsn), unit: String(v.unit), rate: String(v.rate), gst: String(v.gst), low: String(v.low), open: "0", active: it ? it.active : true });
   const [err, setErr] = useState("");
@@ -50,15 +51,15 @@ export function ItemDialog({ id, preset, onClose, onSaved }: { id: string | null
       </div>
       <div className="grid3">
         <div className="f"><label htmlFor="i-gst">GST %</label><input className="inp" id="i-gst" type="number" step="any" min="0" list="gstList" value={f.gst} onChange={set("gst")} /></div>
-        <div className="f"><label htmlFor="i-low">Low stock alert at</label><input className="inp" id="i-low" type="number" step="any" min="0" value={f.low} onChange={set("low")} /></div>
-        {it
+        {track && <div className="f"><label htmlFor="i-low">Low stock alert at</label><input className="inp" id="i-low" type="number" step="any" min="0" value={f.low} onChange={set("low")} /></div>}
+        {track && (it
           ? <div className="f"><label>Current stock</label><div className="inp" style={{ background: "var(--surface2)" }}>{trimNum(it.stock, 3)} {it.unit}</div></div>
-          : <div className="f"><label htmlFor="i-open">Opening stock</label><input className="inp" id="i-open" type="number" step="any" min="0" value={f.open} onChange={set("open")} /></div>}
+          : <div className="f"><label htmlFor="i-open">Opening stock</label><input className="inp" id="i-open" type="number" step="any" min="0" value={f.open} onChange={set("open")} /></div>)}
       </div>
       {it && (
         <>
           <label className="row small"><input type="checkbox" checked={f.active} onChange={set("active")} /> Show this item when billing</label>
-          <div className="small muted">Change stock with Adjust stock so the movement is recorded. The default rate only pre-fills new bills. Old bills keep their own rate.</div>
+          <div className="small muted">{track ? "Change stock with Adjust stock so the movement is recorded. " : ""}The default rate only pre-fills new bills. Old bills keep their own rate.</div>
         </>
       )}
     </Dialog>

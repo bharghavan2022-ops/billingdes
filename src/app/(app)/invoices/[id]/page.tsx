@@ -65,7 +65,7 @@ export default function InvoicePage() {
   const cancel = () => {
     update((d) => {
       const x = invById(d, id)!;
-      x.lines.forEach((l) => { const it = itemById(d, l.itemId); if (it) moveStock(d, it, N(l.qty), "CANCEL", x.no, "Invoice cancelled", todayISO()); });
+      if (d.settings.trackStock) x.lines.forEach((l) => { const it = itemById(d, l.itemId); if (it) moveStock(d, it, N(l.qty), "CANCEL", x.no, "Invoice cancelled", todayISO()); });
       x.status = "cancelled"; x.cancelledAt = Date.now();
     });
     toast("Invoice cancelled");
@@ -108,7 +108,7 @@ export default function InvoicePage() {
       </div>
       {pay && <PayDialog id={id} onClose={() => setPay(false)} />}
       {confirmCancel && <ConfirmDialog danger title={"Cancel invoice " + inv.no + "?"} okLabel="Cancel invoice" onClose={() => setConfirmCancel(false)} onOk={cancel}
-        message="The goods go back into stock and the bill is marked cancelled. The invoice number stays on record and cannot be reused." />}
+        message={(db.settings.trackStock ? "The goods go back into stock and the bill is marked cancelled. " : "The bill is marked cancelled. ") + "The invoice number stays on record and cannot be reused."} />}
       {printLabels && createPortal(<div id="printArea">{printLabels.map((l) => <Paper key={l} inv={inv} settings={db.settings} label={l} />)}</div>, document.body)}
     </>
   );

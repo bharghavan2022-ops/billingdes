@@ -79,6 +79,7 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
 
   const c = calcInvoice(ed.lines, isIntra(db, ed.pos), db.settings.roundOff);
   const old = ed.mode === "edit" ? invById(db, ed.id!) : null;
+  const track = db.settings.trackStock;
   const gstBad = !!ed.cust.gstin.trim() && !GSTIN_RE.test(ed.cust.gstin.trim().toUpperCase());
 
   function avail(i: number) {
@@ -109,7 +110,7 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
       key: x.id, pick: () => pickItem(i, x),
       content: <>
         <span className="opt-main"><b className="opt-code">{x.code}</b><b>{x.name}</b> <small>{x.alt}</small></span>
-        <small>{x.stock > 0 ? `${trimNum(x.stock, 3)} ${x.unit}` : "no stock"}{x.rate > 0 ? ` · ₹${trimNum(x.rate, 2)}` : ""}</small>
+        <small>{track ? (x.stock > 0 ? `${trimNum(x.stock, 3)} ${x.unit}` : "no stock") + (x.rate > 0 ? ` · ₹${trimNum(x.rate, 2)}` : "") : [x.hsn && `HSN ${x.hsn}`, `GST ${trimNum(x.gst, 2)}%`, x.rate > 0 && `₹${trimNum(x.rate, 2)}`].filter(Boolean).join(" · ")}</small>
       </>,
     }));
     if (db.items.length === 0) {
@@ -136,7 +137,7 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
       if (!l.itemId) errors.push(`Item ${i + 1}: choose “${l.name || "an item"}” from the list, or add it as a new item.`);
       else if (N(l.qty) <= 0) errors.push(`Item ${i + 1} (${l.name}): quantity must be above 0.`);
     });
-    if (!errors.length && !db.settings.allowNegative) errors.push(...stockProblems(db, lines, old));
+    if (!errors.length && track && !db.settings.allowNegative) errors.push(...stockProblems(db, lines, old));
     setErrs(errors);
     if (errors.length) { setTimeout(() => errRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 0); return; }
 
@@ -152,11 +153,11 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
       if (prior) {
         const prev = { lines: prior.lines.map((l) => ({ ...l })) };
         Object.assign(prior, rec, { updatedAt: Date.now() });
-        applyStock(d, prior, prev);
+        if (d.settings.trackStock) applyStock(d, prior, prev);
       } else {
         const inv: Invoice = { id: invId, status: "active", payments: [], createdAt: Date.now(), ...rec };
         d.invoices.push(inv);
-        applyStock(d, inv, null);
+        if (d.settings.trackStock) applyStock(d, inv, null);
         const r = N(ed.received);
         if (r > 0) inv.payments.push({ id: uid(), date: ed.date, amount: round2(Math.min(r, inv.grand)), mode: ed.recvMode, note: "" });
         bumpNext(d, no);
@@ -214,7 +215,7 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
                 <div className="ln-no">{i + 1}</div>
                 <div className="f c-item"><label>Item</label>
                   <ComboInput className="inp" placeholder="Search item (Tamil or English)" tabPicks value={l.name} onValueChange={(v) => setLine(i, { name: v, itemId: "" })} options={itemOptions(i)} />
-                  <div className={"hint" + (over && !db.settings.allowNegative ? " bad" : "")}>{a ? (over ? `Only ${trimNum(Math.max(a.avail, 0), 3)} ${a.it.unit} available` : `In stock: ${trimNum(a.avail, 3)} ${a.it.unit}`) : ""}</div></div>
+                  <div className={"hint" + (over && !db.settings.allowNegative ? " bad" : "")}>{track && a ? (over ? `Only ${trimNum(Math.max(a.avail, 0), 3)} ${a.it.unit} available` : `In stock: ${trimNum(a.avail, 3)} ${a.it.unit}`) : ""}</div></div>
                 <div className="f c-hsn"><label>HSN</label><input className="inp" inputMode="numeric" value={l.hsn} onChange={(e) => setLine(i, { hsn: e.target.value })} /></div>
                 <div className="f"><label>Qty <span className="u">{l.unit}</span></label><input className="inp" type="number" step="any" min="0" inputMode="decimal" data-f="qty" value={l.qty} onChange={(e) => setLine(i, { qty: e.target.value })} /></div>
                 <div className="f"><label>Rate ₹</label><input className="inp" type="number" step="any" min="0" inputMode="decimal" value={l.rate} onChange={(e) => setLine(i, { rate: e.target.value })} />

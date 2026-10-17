@@ -20,7 +20,8 @@ export default function DashboardPage() {
   const td = act.filter((i) => i.date === t), mo = act.filter((i) => i.date.startsWith(ym));
   const owed = act.reduce((s, i) => s + Math.max(0, round2(i.grand - invPaid(i))), 0);
   const overdue = act.filter((i) => invStatus(i, t) === "overdue").length;
-  const low = db.items.filter((i) => i.active && isLow(i));
+  const track = db.settings.trackStock;
+  const low = track ? db.items.filter((i) => i.active && isLow(i)) : [];
   const recent = [...db.invoices].sort((a, b) => b.createdAt - a.createdAt).slice(0, 6);
   const lb = db.meta.lastBackup, days = lb ? Math.floor((Date.now() - lb) / 864e5) : null;
 
@@ -50,9 +51,11 @@ export default function DashboardPage() {
         <div className="stat"><div className="k">Today&apos;s sales</div><div className="v">{money(sum(td))}</div><div className="s">{td.length} bill{td.length === 1 ? "" : "s"}</div></div>
         <div className="stat"><div className="k">This month</div><div className="v">{money(sum(mo))}</div><div className="s">{mo.length} bill{mo.length === 1 ? "" : "s"}</div></div>
         <div className="stat"><div className="k">Money to collect</div><div className="v">{money(owed)}</div><div className="s">{overdue} overdue</div></div>
-        <div className="stat"><div className="k">Items to restock</div><div className="v">{low.length}</div><div className="s">low or out of stock</div></div>
+        {track
+          ? <div className="stat"><div className="k">Items to restock</div><div className="v">{low.length}</div><div className="s">low or out of stock</div></div>
+          : <div className="stat"><div className="k">Items for billing</div><div className="v">{db.items.filter((i) => i.active).length}</div><div className="s">in your item list</div></div>}
       </div>
-      <div className="split">
+      <div className="split" style={track ? undefined : { gridTemplateColumns: "minmax(0,1fr)" }}>
         <div className="card"><h2>Recent bills</h2>
           {recent.length ? (
             <div className="tw"><table className="tbl"><tbody>
@@ -66,6 +69,7 @@ export default function DashboardPage() {
             </tbody></table></div>
           ) : <div className="empty">No bills yet. Create your first one.</div>}
         </div>
+        {track && (
         <div className="card"><h2>Stock to watch</h2>
           {low.length ? (
             <div className="tw"><table className="tbl"><tbody>
@@ -80,6 +84,7 @@ export default function DashboardPage() {
             </tbody></table></div>
           ) : <div className="empty">All items are above their alert level.</div>}
         </div>
+        )}
       </div>
       {adjust && <AdjustDialog id={adjust} onClose={() => setAdjust("")} />}
     </>
