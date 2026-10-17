@@ -4,19 +4,16 @@
 
 /* Layout: sidebar + work area on desktop, bottom tab bar on phones. Invoice paper is always white, whatever the theme. */
 :root{
-  /* Soft sage palette: off-white surfaces and a gentle teal accent, easy on the eyes for long sessions. */
-  --bg:#f4f7f5; --surface:#fcfdfc; --surface2:#eef3f0; --ink:#2a3a36; --muted:#5d706b; --line:#dde6e2;
-  --accent:#3a8571; --accent-ink:#ffffff; --accent-soft:#e1f0eb;
-  --warn:#8a5a14; --warn-soft:#faf0d9; --bad:#b4443c; --bad-soft:#f9e6e3; --ok:#2f7550; --ok-soft:#e0f1e6;
+  /* Light, calm palette. Roughly 60% soft sage-white page, 30% white and pale-sage surfaces, 10% one teal accent.
+     Contrast (WCAG): text >= 4.5:1 on every background it sits on, input borders >= 3:1. */
+  --bg:#f4f8f6; --surface:#ffffff; --surface2:#edf3f0;
+  --ink:#243631; --muted:#55696a;
+  --line:#d9e4df;          /* quiet dividers and card edges */
+  --field:#7c928b;         /* borders of inputs and buttons you interact with */
+  --accent:#2c7a69; --accent-ink:#ffffff; --accent-soft:#e0f0ea; --accent-text:#1f6150;
+  --warn:#7a4f0a; --warn-soft:#fbf1d8; --bad:#a8352e; --bad-soft:#fbe7e4; --ok:#25693f; --ok-soft:#e0f1e5;
   --font:"Segoe UI",system-ui,-apple-system,"Noto Sans Tamil","Nirmala UI","Latha",Roboto,Arial,sans-serif;
-}
-@media (prefers-color-scheme: dark){
-  :root{
-    --bg:#1a2321; --surface:#222d2a; --surface2:#283531; --ink:#dfe8e4; --muted:#9fb0aa; --line:#33423e;
-    --accent:#6fc0a8; --accent-ink:#12261f; --accent-soft:#2a4a41;
-    --warn:#e5bd6e; --warn-soft:#3b3220; --bad:#f0a29a; --bad-soft:#43292a; --ok:#8fd3a8; --ok-soft:#25402f;
-    color-scheme:dark;
-  }
+  color-scheme:light;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -33,7 +30,7 @@ button{font:inherit;cursor:pointer}
 .nav{display:flex;flex-direction:column;gap:2px}
 .nav a{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;color:var(--ink);text-decoration:none;font-weight:500}
 .nav a:hover{background:var(--surface2)}
-.nav a.on{background:var(--accent-soft);color:var(--accent)}
+.nav a.on{background:var(--accent-soft);color:var(--accent-text)}
 .nav svg{width:18px;height:18px;flex:none}
 .side .foot{margin-top:auto;font-size:12px;color:var(--muted)}
 main{padding:24px clamp(16px,3vw,36px) 48px;min-width:0}
@@ -47,10 +44,10 @@ main{padding:24px clamp(16px,3vw,36px) 48px;min-width:0}
 .span2{grid-column:span 2}
 .f{min-width:0}
 .f label,.lbl{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px}
-.inp{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font:inherit;min-width:0}
+.inp{width:100%;padding:9px 10px;border:1px solid var(--field);border-radius:8px;background:var(--surface);color:var(--ink);font:inherit;min-width:0}
 textarea.inp{resize:vertical;min-height:64px}
 .inp.sm{padding:6px 8px;width:auto}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:600;white-space:nowrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 14px;border-radius:8px;border:1px solid var(--field);background:var(--surface);color:var(--ink);font-weight:600;white-space:nowrap}
 .btn:hover{background:var(--surface2)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .btn.primary:hover{filter:brightness(1.08)}
@@ -84,7 +81,7 @@ textarea.inp{resize:vertical;min-height:64px}
 .err ul{margin:4px 0 0;padding-left:18px}
 .tabs{display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--line)}
 .tabs button{background:none;border:0;border-bottom:2px solid transparent;padding:8px 12px;color:var(--muted);font-weight:600}
-.tabs button.on{color:var(--accent);border-color:var(--accent)}
+.tabs button.on{color:var(--accent-text);border-color:var(--accent)}
 .bar-tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
 .bar-tools .inp{width:auto;min-width:160px;flex:1 1 200px;max-width:340px}
 .empty{padding:28px 12px;text-align:center;color:var(--muted)}
@@ -111,11 +108,11 @@ textarea.inp{resize:vertical;min-height:64px}
 #combo .opt{padding:8px 12px;display:flex;justify-content:space-between;gap:14px;cursor:pointer;align-items:baseline}
 #combo .opt.on{background:var(--accent-soft)}
 #combo .opt small{color:var(--muted);white-space:nowrap}
-#combo .opt.add{color:var(--accent);font-weight:600;border-top:1px solid var(--line)}
+#combo .opt.add{color:var(--accent-text);font-weight:600;border-top:1px solid var(--line)}
 /* dialog */
 dialog{border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);padding:0;width:min(560px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
 dialog[open]{display:flex;flex-direction:column}
-dialog::backdrop{background:rgba(30,45,41,.38)}
+dialog::backdrop{background:rgba(36,54,49,.35)}
 .dh{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
 .dbody{padding:18px;display:grid;gap:12px;overflow:auto}
 .df{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
