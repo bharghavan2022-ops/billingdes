@@ -7,41 +7,49 @@ import { supabaseKey, supabaseUrl } from "@/lib/supabase/env";
 import { applyChanges } from "@/lib/billing/server";
 import { TABLES, type Changes } from "@/lib/billing/rows";
 
-const credentials = z.object({ email: z.string().email("Enter a valid email."), password: z.string().min(6, "Password needs at least 6 characters.") });
+export type AuthResult = { error?: string; notice?: string };
 
-/** Runs a Supabase auth call and turns configuration or network failures into a message instead of a crashed page. */
-async function tryAuth(fn: (c: ReturnType<typeof createClient>) => PromiseLike<{ error: { message: string } | null }>): Promise<AuthResult | null> {
+/** Turns Supabase's terse auth errors into something a person can act on. */
+function friendly(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes("invalid login credentials")) return "Wrong email or password. If you just created this account, open the confirmation email we sent and click the link first.";
+  if (m.includes("email not confirmed")) return "This email isn't confirmed yet. Open the confirmation email and click the link, then sign in.";
+  if (m.includes("rate limit")) return "Too many emails were sent recently. Wait a few minutes and try again, or ask the site owner to turn off email confirmation.";
+  if (m.includes("already registered") || m.includes("already been registered")) return "This email is already registered. Use Sign in instead.";
+  if (m.includes("signups not allowed") || m.includes("signup is disabled")) return "New accounts are turned off for this site.";
+  if (m.includes("password") && m.includes("characters")) return "Password needs at least 6 characters.";
+  return message;
+}
+
+const credentials = z.object({ email: z.string().trim().email("Enter a valid email address."), password: z.string().min(6, "Password needs at least 6 characters.") });
+
+/** One action for both buttons: the clicked button's value ("signin" or "signup") arrives as `intent`. */
+export async function authenticate(_prev: AuthResult, form: FormData): Promise<AuthResult> {
+  const intent = form.get("intent") === "signup" ? "signup" : "signin";
+  const parsed = credentials.safeParse({ email: form.get("email"), password: form.get("password") });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
   if (!supabaseUrl || !supabaseKey) return { error: "Supabase is not configured on the server (missing environment variables)." };
+
+  let signedIn = false;
   try {
-    const { error } = await fn(createClient());
-    return error ? { error: error.message } : null;
+    const supabase = createClient();
+    if (intent === "signup") {
+      const { data, error } = await supabase.auth.signUp(parsed.data);
+      if (error) return { error: friendly(error.message) };
+      // Supabase answers an already-registered email with a user that has no identities (and sends nothing).
+      if (data.user && data.user.identities?.length === 0) return { error: "This email is already registered. Use Sign in instead." };
+      if (!data.session) return { notice: `Account created. We sent a confirmation email to ${parsed.data.email}. Click the link in it, then come back and sign in. (Check spam if you don't see it.)` };
+      signedIn = true;
+    } else {
+      const { error } = await supabase.auth.signInWithPassword(parsed.data);
+      if (error) return { error: friendly(error.message) };
+      signedIn = true;
+    }
   } catch (e) {
     return { error: "Could not reach Supabase: " + (e instanceof Error ? e.message : String(e)) };
   }
-}
-
-export type AuthResult = { error?: string; notice?: string };
-
-export async function signIn(_prev: AuthResult, form: FormData): Promise<AuthResult> {
-  const parsed = credentials.safeParse({ email: form.get("email"), password: form.get("password") });
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const failed = await tryAuth((c) => c.auth.signInWithPassword(parsed.data));
-  if (failed) return failed;
-  redirect("/");
-}
-
-export async function signUp(_prev: AuthResult, form: FormData): Promise<AuthResult> {
-  const parsed = credentials.safeParse({ email: form.get("email"), password: form.get("password") });
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
-  let confirmed = false;
-  const failed = await tryAuth(async (c) => {
-    const r = await c.auth.signUp(parsed.data);
-    confirmed = !!r.data.session;
-    return r;
-  });
-  if (failed) return failed;
-  if (!confirmed) return { notice: "Account created. Confirm the email we sent, then sign in." };
-  redirect("/");
+  if (signedIn) redirect("/");
+  return {};
 }
 
 export async function signOut() {
