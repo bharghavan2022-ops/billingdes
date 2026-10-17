@@ -43,7 +43,7 @@ describe("stock", () => {
   });
   it("flags over-selling and applies edits as deltas", () => {
     const db = defaults();
-    db.items.push({ id: "i1", name: "Rice", alt: "", hsn: "", unit: "KGS", rate: 10, gst: 0, low: 0, stock: 5, active: true });
+    db.items.push({ id: "i1", code: "001", name: "Rice", alt: "", hsn: "", unit: "KGS", rate: 10, gst: 0, low: 0, stock: 5, active: true });
     const lines = [{ itemId: "i1", name: "Rice", hsn: "", unit: "KGS", qty: 8, rate: 10, disc: 0, gst: 0 }];
     expect(stockProblems(db, lines)).toHaveLength(1);
     const inv = { no: "1", date: "2026-01-01", cust: { name: "A" }, lines: [{ ...lines[0], qty: 3 }] } as unknown as Invoice;

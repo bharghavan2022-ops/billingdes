@@ -2,7 +2,7 @@ export interface Party { name: string; address: string; mobile: string; gstin: s
 export interface Customer extends Party { id: string; state: string }
 export interface Item {
   id: string; name: string; alt: string; hsn: string; unit: string;
-  rate: number; gst: number; low: number; stock: number; active: boolean;
+  code: string; rate: number; gst: number; low: number; stock: number; active: boolean;
 }
 export interface Line {
   itemId: string; name: string; hsn: string; unit: string;

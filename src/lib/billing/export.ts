@@ -27,7 +27,7 @@ export function invoicesCsv(db: BillingData) {
 }
 
 export function stockCsv(db: BillingData) {
-  const rows: (string | number)[][] = [["Item", "HSN", "Unit", "Rate", "GST %", "In stock", "Alert at"]];
-  db.items.forEach((i) => rows.push([i.name, i.hsn, i.unit, i.rate, i.gst, i.stock, i.low]));
+  const rows: (string | number)[][] = [["Code", "Item", "HSN", "Unit", "Rate", "GST %", "In stock", "Alert at"]];
+  db.items.forEach((i) => rows.push([i.code, i.name, i.hsn, i.unit, i.rate, i.gst, i.stock, i.low]));
   return csv(rows);
 }

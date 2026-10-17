@@ -101,8 +101,8 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
   }
   const itemOptions = (i: number) => (): ComboOption[] => {
     const q = ed.lines[i].name.trim().toLowerCase();
-    const list = db.items.filter((x) => x.active && (!q || (x.name + " " + x.alt + " " + x.hsn).toLowerCase().includes(q))).sort((a, b) => a.name.localeCompare(b.name)).slice(0, 8);
-    const o: ComboOption[] = list.map((x) => ({ key: x.id, pick: () => pickItem(i, x), content: <><span><b>{x.name}</b> <small>{x.alt}</small></span><small>₹{trimNum(x.rate, 2)} · {trimNum(x.stock, 3)} {x.unit}</small></> }));
+    const list = db.items.filter((x) => x.active && (!q || (x.code + " " + x.name + " " + x.alt + " " + x.hsn).toLowerCase().includes(q))).sort((a, b) => a.name.localeCompare(b.name)).slice(0, 8);
+    const o: ComboOption[] = list.map((x) => ({ key: x.id, pick: () => pickItem(i, x), content: <><span><small>{x.code}</small> <b>{x.name}</b> <small>{x.alt}</small></span><small>₹{trimNum(x.rate, 2)} · {trimNum(x.stock, 3)} {x.unit}</small></> }));
     o.push({ key: "__add", add: true, pick: () => setDialogFor({ line: i, name: ed.lines[i].name.trim() }), content: <span>＋ Add {q ? `“${ed.lines[i].name.trim()}”` : "a new item"} to your items</span> });
     return o;
   };

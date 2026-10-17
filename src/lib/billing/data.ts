@@ -1,4 +1,5 @@
 import { N, calcInvoice, qtyByItem, round3, todayISO, trimNum } from "./calc";
+import { CATALOGUE, CATALOGUE_SIZE } from "./catalogue";
 import type { BillingData, Invoice, Item } from "./types";
 
 export const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
@@ -21,12 +22,42 @@ export function defaults(): BillingData {
 /** Fills any missing fields so data saved by older versions (or restored from a backup) always has the full shape. */
 export function migrate(d: Partial<BillingData>): BillingData {
   const df = defaults();
-  return {
+  const out = {
     ...df, ...d,
     settings: { ...df.settings, ...d.settings, biz: { ...df.settings.biz, ...d.settings?.biz }, bank: { ...df.settings.bank, ...d.settings?.bank } },
     meta: { ...df.meta, ...d.meta },
     items: d.items || [], customers: d.customers || [], invoices: d.invoices || [], ledger: d.ledger || [],
   } as BillingData;
+  ensureItemCodes(out);
+  return out;
+}
+
+/** Codes 001-101 are reserved for the catalogue, so new items start at 102 and always continue from the highest code in use. */
+export function nextItemCode(db: Pick<BillingData, "items">): string {
+  const max = db.items.reduce((m, i) => Math.max(m, /^\d+$/.test(i.code || "") ? Number(i.code) : 0), CATALOGUE_SIZE);
+  return String(max + 1).padStart(3, "0");
+}
+
+/** Gives every item that has no code the next free one (older data saved before codes existed). */
+export function ensureItemCodes(db: BillingData) {
+  for (const i of db.items) if (!i.code) i.code = nextItemCode(db);
+}
+
+/**
+ * Loads the standard catalogue (names only: no stock, rate, unit or tax). An item you already have with the same name keeps
+ * its stock and details and simply takes the catalogue code. Safe to run more than once.
+ */
+export function addCatalogueItems(db: BillingData): { added: number; linked: number } {
+  const reserved = new Set(CATALOGUE.map((c) => c.code));
+  let added = 0, linked = 0;
+  for (const c of CATALOGUE) {
+    if (db.items.some((i) => i.code === c.code)) continue;
+    const same = db.items.find((i) => i.name.trim().toLowerCase() === c.name.trim().toLowerCase() && !reserved.has(i.code));
+    if (same) { same.code = c.code; linked++; continue; }
+    db.items.push({ id: uid(), code: c.code, name: c.name, alt: c.english, hsn: "", unit: "NOS", rate: 0, gst: 0, low: 0, stock: 0, active: true });
+    added++;
+  }
+  return { added, linked };
 }
 
 export const itemById = (db: BillingData, id: string) => db.items.find((i) => i.id === id);
@@ -76,7 +107,7 @@ export function seed(): BillingData {
   Object.assign(s.bank, { holder: "SRI ANGALAESWARI TRADERS", ifsc: "SBIN0000869", acc: "44511788356", bank: "State Bank of India, MADURAI" });
   s.terms = "1. Goods once sold will not be taken back or exchanged\n2. All disputes are subject to Madurai jurisdiction only";
   const mk = (name: string, alt: string, hsn: string, unit: string, rate: number, gst: number, open: number, low: number) => {
-    const it: Item = { id: uid(), name, alt, hsn, unit, rate, gst, low, stock: 0, active: true };
+    const it: Item = { id: uid(), code: nextItemCode(db), name, alt, hsn, unit, rate, gst, low, stock: 0, active: true };
     db.items.push(it);
     moveStock(db, it, open, "OPENING", "", "Sample opening stock", "2026-08-31");
     return it;

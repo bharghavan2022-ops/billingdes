@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { N, dmy, round3, trimNum } from "@/lib/billing/calc";
 import { MOVE_LABEL } from "@/lib/billing/constants";
-import { itemById, moveStock, uid } from "@/lib/billing/data";
+import { itemById, moveStock, nextItemCode, uid } from "@/lib/billing/data";
 import type { Item, MoveType } from "@/lib/billing/types";
 import { useBilling } from "./billing-provider";
 import { Dialog, ErrorBox } from "./dialog";
@@ -26,7 +26,7 @@ export function ItemDialog({ id, preset, onClose, onSaved }: { id: string | null
       if (it) {
         Object.assign(itemById(d, it.id)!, rec, { active: f.active });
       } else {
-        const saved: Item = { id: newId, stock: 0, active: true, ...rec };
+        const saved: Item = { id: newId, code: nextItemCode(d), stock: 0, active: true, ...rec };
         d.items.push(saved);
         const o = N(f.open);
         if (o > 0) moveStock(d, saved, o, "OPENING", "", "Opening stock");
@@ -34,12 +34,13 @@ export function ItemDialog({ id, preset, onClose, onSaved }: { id: string | null
     });
     toast("Item saved");
     onClose();
-    onSaved?.({ ...(it ?? { stock: N(f.open), active: true }), id: newId, ...rec } as Item);
+    onSaved?.({ ...(it ?? { stock: N(f.open), active: true, code: nextItemCode(db) }), id: newId, ...rec } as Item);
   };
 
   return (
     <Dialog title={it ? "Edit item" : "Add item"} onClose={onClose} footer={<><button className="btn" onClick={onClose}>Cancel</button><button className="btn primary" onClick={save}>Save item</button></>}>
       <ErrorBox msg={err} />
+      <div className="small muted">Item code: <b>{it ? it.code : nextItemCode(db)}</b>{it ? "" : " (assigned automatically when you save)"}</div>
       <div className="f"><label htmlFor="i-name">Item name (as printed on the bill)</label><input className="inp" id="i-name" value={f.name} onChange={set("name")} /></div>
       <div className="f"><label htmlFor="i-alt">English name or search keywords (not printed)</label><input className="inp" id="i-alt" value={f.alt} onChange={set("alt")} placeholder="e.g. pickle, rasam powder" /></div>
       <div className="grid3">

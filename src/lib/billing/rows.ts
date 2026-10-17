@@ -33,7 +33,7 @@ const s = (v: unknown) => (v == null ? "" : String(v));
 
 export function toRowSets(db: BillingData): RowSets {
   const out = emptyRowSets();
-  for (const i of db.items) out.items.set(i.id, { id: i.id, name: i.name, alt: i.alt, hsn: i.hsn, unit: i.unit, rate: N(i.rate), gst: N(i.gst), low: N(i.low), stock: N(i.stock), active: !!i.active });
+  for (const i of db.items) out.items.set(i.id, { id: i.id, code: i.code || null, name: i.name, alt: i.alt, hsn: i.hsn, unit: i.unit, rate: N(i.rate), gst: N(i.gst), low: N(i.low), stock: N(i.stock), active: !!i.active });
   for (const c of db.customers) out.customers.set(c.id, { id: c.id, name: c.name, address: c.address, mobile: c.mobile, gstin: c.gstin, pan: c.pan, state: c.state });
   for (const v of db.invoices) {
     out.invoices.set(v.id, {
@@ -62,7 +62,7 @@ export interface LoadedRows {
 export function fromRows(r: LoadedRows): BillingData {
   const df = defaults();
   const doc = r.settings;
-  const items: Item[] = r.items.map((x) => ({ id: s(x.id), name: s(x.name), alt: s(x.alt), hsn: s(x.hsn), unit: s(x.unit), rate: N(x.rate), gst: N(x.gst), low: N(x.low), stock: N(x.stock), active: !!x.active }));
+  const items: Item[] = r.items.map((x) => ({ id: s(x.id), code: s(x.code), name: s(x.name), alt: s(x.alt), hsn: s(x.hsn), unit: s(x.unit), rate: N(x.rate), gst: N(x.gst), low: N(x.low), stock: N(x.stock), active: !!x.active }));
   const customers: Customer[] = r.customers.map((x) => ({ id: s(x.id), name: s(x.name), address: s(x.address), mobile: s(x.mobile), gstin: s(x.gstin), pan: s(x.pan), state: s(x.state) }));
   const linesBy = new Map<string, Rows[]>(), paysBy = new Map<string, Rows[]>();
   for (const l of r.invoice_lines) { const k = s(l.invoice_id); (linesBy.get(k) ?? linesBy.set(k, []).get(k)!).push(l); }

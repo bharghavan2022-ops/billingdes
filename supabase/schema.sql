@@ -21,6 +21,7 @@ create table if not exists public.items (
   low numeric not null,
   stock numeric not null,
   active boolean not null,
+  code text,
   primary key (user_id, id)
 );
 
@@ -108,6 +109,10 @@ create table if not exists public.stock_movements (
   primary key (user_id, id)
 );
 
+-- Item codes (001, 002, ...). Added after the first version, so existing databases get the column here.
+alter table public.items add column if not exists code text;
+create unique index if not exists items_user_code_idx on public.items (user_id, code) where code is not null;
+
 create index if not exists invoices_user_date_idx on public.invoices (user_id, date desc);
 create index if not exists invoice_lines_invoice_idx on public.invoice_lines (user_id, invoice_id);
 create index if not exists payments_invoice_idx on public.payments (user_id, invoice_id);
@@ -180,9 +185,9 @@ begin
     on conflict (user_id) do update set data = excluded.data, updated_at = now();
   end if;
   if p->'upserts'->'items' is not null then
-    insert into public.items (user_id, id, name, alt, hsn, unit, rate, gst, low, stock, active)
-    select auth.uid(), r.id, r.name, r.alt, r.hsn, r.unit, r.rate, r.gst, r.low, r.stock, r.active from jsonb_populate_recordset(null::public.items, p->'upserts'->'items') r
-    on conflict (user_id, id) do update set name = excluded.name, alt = excluded.alt, hsn = excluded.hsn, unit = excluded.unit, rate = excluded.rate, gst = excluded.gst, low = excluded.low, stock = excluded.stock, active = excluded.active;
+    insert into public.items (user_id, id, name, alt, hsn, unit, rate, gst, low, stock, active, code)
+    select auth.uid(), r.id, r.name, r.alt, r.hsn, r.unit, r.rate, r.gst, r.low, r.stock, r.active, r.code from jsonb_populate_recordset(null::public.items, p->'upserts'->'items') r
+    on conflict (user_id, id) do update set name = excluded.name, alt = excluded.alt, hsn = excluded.hsn, unit = excluded.unit, rate = excluded.rate, gst = excluded.gst, low = excluded.low, stock = excluded.stock, active = excluded.active, code = excluded.code;
   end if;
   if p->'upserts'->'customers' is not null then
     insert into public.customers (user_id, id, name, address, mobile, gstin, pan, state)

@@ -12,6 +12,12 @@ Features: GST invoices (CGST/SGST or IGST), amount in words, printable original/
 4. Authentication > Providers: keep Email enabled (turn off "Confirm email" for quick testing).
 5. `npm run dev` and open http://localhost:3000. Create an account on the sign-in page; the first sign-in loads sample data from bill no. 49 (clear it in Settings).
 
+## Item codes and the standard item list
+
+Every item has a serial code. The 101 standard items found in the temple indents hold codes `001`-`101` (names only: unit, rate, GST and stock are entered by you). Items you add later get `102`, `103`, ... automatically. On the Items page, **Load 101 standard items** adds them (an item you already have with the same name keeps its details and takes the catalogue code). The full list is in [`docs/item-catalogue.pdf`](docs/item-catalogue.pdf) and in `src/lib/billing/catalogue.ts`.
+
+After updating, re-run `supabase/schema.sql` once in the Supabase SQL Editor (it adds the `code` column and updates the save function).
+
 ## Scripts
 
 `npm run dev` · `npm run build` · `npm run lint` · `npm run typecheck` · `npm test`
