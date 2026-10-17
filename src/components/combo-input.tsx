@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type InputHTMLAttributes, type ReactNode } from "react";
+import { useEffect, useRef, useState, type InputHTMLAttributes, type ReactNode } from "react";
 
 export interface ComboOption { key: string; content: ReactNode; add?: boolean; pick: () => void }
 
@@ -13,6 +13,7 @@ export function ComboInput({ value, onValueChange, options, tabPicks, ...rest }:
   const [idx, setIdx] = useState(0);
   const [pos, setPos] = useState({ left: 0, top: 0, width: 300 });
   const opts = open ? options() : [];
+  useEffect(() => { if (open) document.querySelector("#combo .opt.on")?.scrollIntoView({ block: "nearest" }); }, [idx, open]);
 
   const place = () => {
     const r = ref.current!.getBoundingClientRect();

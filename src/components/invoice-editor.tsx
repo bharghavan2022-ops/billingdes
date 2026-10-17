@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { N, GSTIN_RE, addDays, calcInvoice, inWords, money, plain, round2, round3, todayISO, trimNum, qtyByItem } from "@/lib/billing/calc";
 import { PAY_MODES, STATES } from "@/lib/billing/constants";
-import { applyStock, bumpNext, invById, isIntra, itemById, nextNoStr, stockProblems, uid } from "@/lib/billing/data";
+import { addCatalogueItems, applyStock, bumpNext, invById, isIntra, itemById, nextNoStr, stockProblems, uid } from "@/lib/billing/data";
+import { CATALOGUE_SIZE } from "@/lib/billing/catalogue";
 import type { Customer, Invoice, Item, Line, Party } from "@/lib/billing/types";
 import { useBilling } from "./billing-provider";
 import { ComboInput, type ComboOption } from "./combo-input";
@@ -99,16 +100,28 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
   function pickCust(cu: Customer) {
     setEd((e) => ({ ...e, cust: { name: cu.name, address: cu.address, mobile: cu.mobile, gstin: cu.gstin, pan: cu.pan }, custId: cu.id, pos: cu.state || e.pos }));
   }
+  // Every matching ingredient is listed (scroll the list), each with its code, sorted by code.
   const itemOptions = (i: number) => (): ComboOption[] => {
     const q = ed.lines[i].name.trim().toLowerCase();
-    const list = db.items.filter((x) => x.active && (!q || (x.code + " " + x.name + " " + x.alt + " " + x.hsn).toLowerCase().includes(q))).sort((a, b) => a.name.localeCompare(b.name)).slice(0, 8);
-    const o: ComboOption[] = list.map((x) => ({ key: x.id, pick: () => pickItem(i, x), content: <><span><small>{x.code}</small> <b>{x.name}</b> <small>{x.alt}</small></span><small>₹{trimNum(x.rate, 2)} · {trimNum(x.stock, 3)} {x.unit}</small></> }));
+    const list = db.items.filter((x) => x.active && (!q || (x.code + " " + x.name + " " + x.alt + " " + x.hsn).toLowerCase().includes(q)))
+      .sort((a, b) => (a.code || "").localeCompare(b.code || "") || a.name.localeCompare(b.name)).slice(0, 300);
+    const o: ComboOption[] = list.map((x) => ({
+      key: x.id, pick: () => pickItem(i, x),
+      content: <>
+        <span className="opt-main"><b className="opt-code">{x.code}</b><b>{x.name}</b> <small>{x.alt}</small></span>
+        <small>{x.stock > 0 ? `${trimNum(x.stock, 3)} ${x.unit}` : "no stock"}{x.rate > 0 ? ` · ₹${trimNum(x.rate, 2)}` : ""}</small>
+      </>,
+    }));
+    if (db.items.length === 0) {
+      o.push({ key: "__catalogue", add: true, content: <span>⬇ Load the {CATALOGUE_SIZE} standard items (codes 001–{CATALOGUE_SIZE})</span>,
+        pick: () => { let n = 0; update((d) => { n = addCatalogueItems(d).added; }); toast(`${n} items added. Search again to pick one.`); } });
+    }
     o.push({ key: "__add", add: true, pick: () => setDialogFor({ line: i, name: ed.lines[i].name.trim() }), content: <span>＋ Add {q ? `“${ed.lines[i].name.trim()}”` : "a new item"} to your items</span> });
     return o;
   };
   const custOptions = (): ComboOption[] => {
     const q = ed.cust.name.trim().toLowerCase();
-    return db.customers.filter((x) => !q || (x.name + " " + x.mobile + " " + x.gstin).toLowerCase().includes(q)).sort((a, b) => a.name.localeCompare(b.name)).slice(0, 8)
+    return db.customers.filter((x) => !q || (x.name + " " + x.mobile + " " + x.gstin).toLowerCase().includes(q)).sort((a, b) => a.name.localeCompare(b.name)).slice(0, 100)
       .map((x) => ({ key: x.id, pick: () => pickCust(x), content: <><span><b>{x.name}</b></span><small>{x.mobile}</small></> }));
   };
 
