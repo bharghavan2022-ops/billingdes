@@ -1,8 +1,9 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { saveData } from "@/app/actions";
+import { saveChanges } from "@/app/actions";
 import { migrate } from "@/lib/billing/data";
+import { chunkChanges, diffAgainst, snapshotOf, type Snapshot } from "@/lib/billing/rows";
 import type { BillingData } from "@/lib/billing/types";
 
 type SaveState = "saved" | "saving" | "error";
@@ -32,23 +33,44 @@ export function BillingProvider({ initial, email, children }: { initial: Billing
   const [toastOn, setToastOn] = useState(false);
   const latest = useRef(db);
   const dirty = useRef(false);
+  const saved = useRef<Snapshot | null>(null);
+  if (saved.current === null) saved.current = snapshotOf(db).snap;
+  const inflight = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout>>();
   const toastTimer = useRef<ReturnType<typeof setTimeout>>();
 
+  /** Saves only the rows that changed since the last successful save. */
   const flush = useCallback(async () => {
     clearTimeout(timer.current);
-    if (!dirty.current) return;
+    if (!dirty.current || inflight.current) return;
+    inflight.current = true;
     dirty.current = false;
     setSaveState("saving");
-    let r: { ok: boolean; error?: string };
-    try { r = await saveData(latest.current); }
-    catch (e) { r = { ok: false, error: e instanceof Error ? e.message : "Could not reach the server" }; }
-    if (r.ok) { setSaveState(dirty.current ? "saving" : "saved"); setSaveError(""); }
-    else { dirty.current = true; setSaveState("error"); setSaveError(r.error || "Could not save"); clearTimeout(timer.current); timer.current = setTimeout(flush, 15000); }
+    let failure = "";
+    try {
+      const { changes, next, count } = diffAgainst(saved.current!, latest.current);
+      if (count > 0) {
+        for (const piece of chunkChanges(changes)) {
+          const r = await saveChanges(piece);
+          if (!r.ok) { failure = r.error || "Could not save"; break; }
+        }
+        if (!failure) saved.current = next;
+      }
+    } catch (e) {
+      failure = e instanceof Error ? e.message : "Could not reach the server";
+    }
+    inflight.current = false;
+    if (!failure) {
+      setSaveError("");
+      if (dirty.current) { setSaveState("saving"); timer.current = setTimeout(flush, 300); } else setSaveState("saved");
+    } else {
+      dirty.current = true;
+      setSaveState("error"); setSaveError(failure);
+      timer.current = setTimeout(flush, 15000);
+    }
   }, []);
 
   const commit = useCallback((next: BillingData) => {
-    next.meta.savedAt = Date.now();
     latest.current = next;
     dirty.current = true;
     setDb(next);

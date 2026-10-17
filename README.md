@@ -26,4 +26,18 @@ Features: GST invoices (CGST/SGST or IGST), amount in words, printable original/
 
 ## Data model
 
-Each user's data is one JSON document in `billing_data.data` (items, customers, invoices, stock ledger, settings). Changes are saved about a second after each edit. If the same account is open on two devices at once, the last save wins, so use one device at a time. The whole document is sent on every save, capped at 4 MB (the Vercel request limit is 4.5 MB). In stress tests that is roughly 1,000 bills with a typical item and customer list, so a busy shop should move to per-record tables before then. A failed save shows "Not saved" in the sidebar and retries automatically.
+Real tables, all with row level security so each user only sees their own rows (`supabase/schema.sql`):
+
+| Table | Holds |
+|---|---|
+| `settings` | one row: business and bank details, numbering, flags |
+| `items` | products with rate, GST, stock level |
+| `customers` | saved customers |
+| `invoices` | one row per bill (customer snapshot, totals, status) |
+| `invoice_lines` | the items on each bill (deleted with the bill) |
+| `payments` | payments received against a bill (deleted with the bill) |
+| `stock_movements` | the stock ledger (sale, edit, cancel, purchase, return, damage, count, opening) |
+
+The app keeps a working copy in the browser and, about a second after each edit, sends only the rows that changed. The database applies each save in one transaction (`apply_changes`), so a bill, its stock movements and its payment are never half saved. There is no size limit on the account. If the same account is open on two devices at once, the last save wins.
+
+**Upgrading from the single-document version:** run the new `supabase/schema.sql`, then sign in. If your old `billing_data` table has data, it is copied into the new tables automatically the first time. `billing_data` is left untouched as a backup; drop it once you have checked everything (`drop table public.billing_data;`).

@@ -4,8 +4,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseKey, supabaseUrl } from "@/lib/supabase/env";
-import { migrate } from "@/lib/billing/data";
-import type { BillingData } from "@/lib/billing/types";
+import { applyChanges } from "@/lib/billing/server";
+import { TABLES, type Changes } from "@/lib/billing/rows";
 
 const credentials = z.object({ email: z.string().email("Enter a valid email."), password: z.string().min(6, "Password needs at least 6 characters.") });
 
@@ -49,16 +49,25 @@ export async function signOut() {
   redirect("/login");
 }
 
-/** Saves the signed-in user's whole data set. Row level security (supabase/schema.sql) limits each user to their own row. */
-export async function saveData(data: BillingData): Promise<{ ok: boolean; error?: string }> {
+const rowSchema = z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()]));
+const changesSchema = z.object({
+  settings: z.object({ v: z.number(), settings: z.record(z.string(), z.unknown()), meta: z.record(z.string(), z.unknown()) }).optional(),
+  upserts: z.record(z.string(), z.array(rowSchema)),
+  deletes: z.record(z.string(), z.array(z.string())),
+});
+
+/** Saves only what changed. Row level security (supabase/schema.sql) limits each user to their own rows. */
+export async function saveChanges(changes: Changes): Promise<{ ok: boolean; error?: string }> {
   try {
+    const parsed = changesSchema.safeParse(changes);
+    if (!parsed.success) return { ok: false, error: "Invalid save request." };
+    const known = new Set<string>(TABLES);
+    for (const k of [...Object.keys(parsed.data.upserts), ...Object.keys(parsed.data.deletes)]) if (!known.has(k)) return { ok: false, error: "Invalid save request." };
     const supabase = createClient();
     const { data: auth } = await supabase.auth.getUser();
     if (!auth.user) return { ok: false, error: "Signed out. Sign in again." };
-    const { error } = await supabase
-      .from("billing_data")
-      .upsert({ user_id: auth.user.id, data: migrate(data), updated_at: new Date().toISOString() });
-    return error ? { ok: false, error: error.message } : { ok: true };
+    const err = await applyChanges(supabase, parsed.data as Changes);
+    return err ? { ok: false, error: err.message } : { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Could not save" };
   }

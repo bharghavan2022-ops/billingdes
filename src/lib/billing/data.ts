@@ -44,7 +44,7 @@ export const isLow = (i: Item) => i.stock <= 0 || (i.low > 0 && i.stock <= i.low
 /* The functions below mutate the BillingData they are given. Call them on a copy (see BillingProvider.update). */
 export function moveStock(db: BillingData, it: Item, delta: number, type: import("./types").MoveType, ref?: string, note?: string, date?: string) {
   it.stock = round3(it.stock + delta);
-  db.ledger.push({ id: uid(), ts: Date.now(), date: date || todayISO(), itemId: it.id, name: it.name, qty: round3(delta), type, ref: ref || "", note: note || "", bal: it.stock });
+  db.ledger.push({ id: uid(), ts: Math.max(Date.now(), (db.ledger[db.ledger.length - 1]?.ts ?? 0) + 1), date: date || todayISO(), itemId: it.id, name: it.name, qty: round3(delta), type, ref: ref || "", note: note || "", bal: it.stock });
 }
 
 export function stockProblems(db: BillingData, lines: Invoice["lines"], old?: Invoice | null) {
