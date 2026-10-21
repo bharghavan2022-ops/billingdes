@@ -81,6 +81,8 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
   }
 
   const lang: Lang = ed.lang === "ta" ? "ta" : "en";
+  /** In a Tamil bill, the customer, shipping and notes fields get the floating Tamil keyboard too. */
+  const tamilIf = lang === "ta" ? { "data-tamil": "" } : {};
   /** Switching the bill language also swaps the default heading, but never one the user has typed. */
   const setLang = (l: Lang) => setEd((e) => {
     const h = e.heading.trim(), other = l === "ta" ? "en" : "ta";
@@ -241,8 +243,8 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
       <div className="grid2" style={{ alignItems: "start" }}>
         <div className="card"><h2>Bill to</h2><div className="grid2">
           <div className="f span2"><label htmlFor="e-cname">Customer name (type to search saved customers)</label>
-            <ComboInput className="inp" id="e-cname" value={ed.cust.name} onValueChange={(v) => setEd((e) => ({ ...e, cust: { ...e.cust, name: v }, custId: "" }))} options={custOptions} /></div>
-          <div className="f span2"><label htmlFor="e-caddr">Address</label><textarea className="inp" id="e-caddr" rows={2} value={ed.cust.address} onChange={(e) => patchCust({ address: e.target.value })} /></div>
+            <ComboInput className="inp" id="e-cname" {...tamilIf} value={ed.cust.name} onValueChange={(v) => setEd((e) => ({ ...e, cust: { ...e.cust, name: v }, custId: "" }))} options={custOptions} /></div>
+          <div className="f span2"><label htmlFor="e-caddr">Address</label><textarea className="inp" id="e-caddr" {...tamilIf} rows={2} value={ed.cust.address} onChange={(e) => patchCust({ address: e.target.value })} /></div>
           <div className="f"><label htmlFor="e-cmob">Mobile</label><input className="inp" id="e-cmob" inputMode="tel" value={ed.cust.mobile} onChange={(e) => patchCust({ mobile: e.target.value })} /></div>
           <div className="f"><label htmlFor="e-pos">Place of supply</label><select className="inp" id="e-pos" value={ed.pos} onChange={(e) => patch({ pos: e.target.value })}>{STATES.map((s) => <option key={s}>{s}</option>)}</select></div>
           <div className="f"><label htmlFor="e-cgst">GSTIN</label><input className="inp" id="e-cgst" style={{ textTransform: "uppercase" }} value={ed.cust.gstin} onChange={(e) => patchCust({ gstin: e.target.value })} />{gstBad && <div className="hint bad">This GSTIN does not look valid.</div>}</div>
@@ -252,8 +254,8 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
         <div className="card"><h2>Ship to</h2>
           <label className="row small" style={{ marginBottom: 10 }}><input type="checkbox" checked={ed.shipSame} onChange={(e) => patch({ shipSame: e.target.checked })} /> Same as billing address</label>
           {!ed.shipSame && <div className="grid2">
-            <div className="f span2"><label htmlFor="e-sname">Name</label><input className="inp" id="e-sname" value={ed.ship.name} onChange={(e) => patch({ ship: { ...ed.ship, name: e.target.value } })} /></div>
-            <div className="f span2"><label htmlFor="e-saddr">Address</label><textarea className="inp" id="e-saddr" rows={2} value={ed.ship.address} onChange={(e) => patch({ ship: { ...ed.ship, address: e.target.value } })} /></div></div>}
+            <div className="f span2"><label htmlFor="e-sname">Name</label><input className="inp" id="e-sname" {...tamilIf} value={ed.ship.name} onChange={(e) => patch({ ship: { ...ed.ship, name: e.target.value } })} /></div>
+            <div className="f span2"><label htmlFor="e-saddr">Address</label><textarea className="inp" id="e-saddr" {...tamilIf} rows={2} value={ed.ship.address} onChange={(e) => patch({ ship: { ...ed.ship, address: e.target.value } })} /></div></div>}
         </div>
       </div>
       <div className="card"><h2>Items</h2>
@@ -292,7 +294,7 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
       </div>
       <div className="grid2" style={{ alignItems: "start" }}>
         <div className="card"><h2>Notes and payment</h2>
-          <div className="f" style={{ marginBottom: 12 }}><label htmlFor="e-notes">Notes printed on the bill</label><textarea className="inp" id="e-notes" rows={2} value={ed.notes} onChange={(e) => patch({ notes: e.target.value })} /></div>
+          <div className="f" style={{ marginBottom: 12 }}><label htmlFor="e-notes">Notes printed on the bill</label><textarea className="inp" id="e-notes" {...tamilIf} rows={2} value={ed.notes} onChange={(e) => patch({ notes: e.target.value })} /></div>
           {ed.mode === "edit" ? <div className="small muted">Payments are managed on the invoice page.</div> : (
             <div className="grid2">
               <div className="f"><label htmlFor="e-recv">Amount received now ₹</label><input className="inp" id="e-recv" type="number" step="any" min="0" inputMode="decimal" value={ed.received} onChange={(e) => patch({ received: e.target.value })} /></div>
