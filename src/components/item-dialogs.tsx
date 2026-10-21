@@ -42,8 +42,8 @@ export function ItemDialog({ id, preset, onClose, onSaved }: { id: string | null
     <Dialog title={it ? "Edit item" : "Add item"} onClose={onClose} footer={<><button className="btn" onClick={onClose}>Cancel</button><button className="btn primary" onClick={save}>Save item</button></>}>
       <ErrorBox msg={err} />
       <div className="small muted">Item code: <b>{it ? it.code : nextItemCode(db)}</b>{it ? "" : " (assigned automatically when you save)"}</div>
-      <div className="f"><label htmlFor="i-name">Item name (as printed on the bill)</label><input className="inp" id="i-name" value={f.name} onChange={set("name")} /></div>
-      <div className="f"><label htmlFor="i-alt">English name or search keywords (not printed)</label><input className="inp" id="i-alt" value={f.alt} onChange={set("alt")} placeholder="e.g. pickle, rasam powder" /></div>
+      <div className="f"><label htmlFor="i-name">Item name (as printed on the bill)</label><input className="inp" id="i-name" data-tamil value={f.name} onChange={set("name")} /></div>
+      <div className="f"><label htmlFor="i-alt">English name or search keywords (not printed)</label><input className="inp" id="i-alt" data-tamil value={f.alt} onChange={set("alt")} placeholder="e.g. pickle, rasam powder" /></div>
       <div className="grid3">
         <div className="f"><label htmlFor="i-hsn">HSN code</label><input className="inp" id="i-hsn" inputMode="numeric" value={f.hsn} onChange={set("hsn")} /></div>
         <div className="f"><label htmlFor="i-unit">Unit</label><input className="inp" id="i-unit" list="unitList" value={f.unit} onChange={set("unit")} /></div>

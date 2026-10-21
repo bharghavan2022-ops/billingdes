@@ -1,5 +1,6 @@
 "use client";
 
+import { TamilKeyboard } from "./tamil-keyboard";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -59,6 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         )}
         {mounted ? children : null}
+        <TamilKeyboard />
       </main>
       <datalist id="gstList">{["0", "0.25", "3", "5", "12", "18", "28", "40"].map((g) => <option key={g} value={g} />)}</datalist>
       <datalist id="unitList">{["KGS", "GMS", "NOS", "PCS", "LTR", "MTR", "BOX", "PKT", "DOZ", "BAG", "BDL"].map((u) => <option key={u} value={u} />)}</datalist>

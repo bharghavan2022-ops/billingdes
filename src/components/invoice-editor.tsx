@@ -223,7 +223,7 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
         <div className="f"><label htmlFor="e-date">Invoice date</label><input className="inp" type="date" id="e-date" value={ed.date} onChange={(e) => patch({ date: e.target.value })} /></div>
         <div className="f"><label htmlFor="e-due">Due date</label><input className="inp" type="date" id="e-due" value={ed.due} onChange={(e) => patch({ due: e.target.value })} /></div>
       </div></div>
-      <div className="card"><h2>Bill heading</h2><div className="f"><label htmlFor="e-heading">Printed at the top of the bill, centred</label><input className="inp" id="e-heading" value={ed.heading} placeholder="TAX INVOICE" onChange={(e) => patch({ heading: e.target.value })} /></div></div>
+      <div className="card"><h2>Bill heading</h2><div className="f"><label htmlFor="e-heading">Printed at the top of the bill, centred</label><input className="inp" id="e-heading" data-tamil value={ed.heading} placeholder="TAX INVOICE" onChange={(e) => patch({ heading: e.target.value })} /></div></div>
       <div className="grid2" style={{ alignItems: "start" }}>
         <div className="card"><h2>Bill to</h2><div className="grid2">
           <div className="f span2"><label htmlFor="e-cname">Customer name (type to search saved customers)</label>
@@ -251,7 +251,7 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
               <div className="ln" data-i={i} key={i}>
                 <div className="ln-no">{i + 1}</div>
                 <div className="f c-item"><label>Item</label>
-                  <ComboInput className="inp" placeholder="Search item (Tamil or English)" tabPicks value={l.name} onValueChange={(v) => setLine(i, { name: v, itemId: "" })} options={itemOptions(i)} />
+                  <ComboInput className="inp" placeholder="Search item (Tamil or English)" data-tamil tabPicks value={l.name} onValueChange={(v) => setLine(i, { name: v, itemId: "" })} options={itemOptions(i)} />
                   <div className={"hint" + (over && !db.settings.allowNegative ? " bad" : "")}>{track && a ? (over ? `Only ${trimNum(Math.max(a.avail, 0), 3)} ${a.it.unit} available` : `In stock: ${trimNum(a.avail, 3)} ${a.it.unit}`) : ""}</div></div>
                 <div className="f c-hsn"><label>HSN</label><input className="inp" inputMode="numeric" value={l.hsn} onChange={(e) => setLine(i, { hsn: e.target.value })} /></div>
                 <div className="f"><label>Qty <span className="u">{l.qtyUnit || l.unit}</span></label>

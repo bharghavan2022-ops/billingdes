@@ -60,7 +60,7 @@ export default function ItemsPage() {
         </div>
       )}
       <div className="bar-tools">
-        <input className="inp" placeholder={tab === "items" ? "Search items" : "Search movements"} value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="inp" data-tamil placeholder={tab === "items" ? "Search items" : "Search movements"} value={q} onChange={(e) => setQ(e.target.value)} />
         {tab === "items" && (<>
           {track && <label className="row small"><input type="checkbox" checked={lowOnly} onChange={(e) => setLowOnly(e.target.checked)} /> Low stock only</label>}
           <span style={{ flex: 1 }} />
