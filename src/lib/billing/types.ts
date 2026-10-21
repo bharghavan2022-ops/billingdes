@@ -12,6 +12,8 @@ export interface Payment { id: string; date: string; amount: number; mode: strin
 export type InvoiceStatusKey = "paid" | "partial" | "unpaid" | "overdue" | "cancelled";
 export interface Invoice {
   id: string; no: string; date: string; due: string;
+  /** Which seller issued this bill. Empty on older bills, which belong to the first seller. */
+  sellerId: string;
   custId: string; cust: Party;
   shipSame: boolean; ship: { name: string; address: string };
   pos: string; intra: boolean; roundOffOn: boolean;
@@ -24,10 +26,15 @@ export interface Movement {
   id: string; ts: number; date: string; itemId: string; name: string;
   qty: number; type: MoveType; ref: string; note: string; bal: number;
 }
+export interface BusinessDetails { name: string; address: string; mobile: string; gstin: string; pan: string; state: string }
+export interface BankDetails { holder: string; ifsc: string; acc: string; bank: string; customerId: string }
+/** One firm that issues bills (the "bill from" party): its letterhead, tax ids, bank details and own invoice numbering. */
+export interface Seller { id: string; biz: BusinessDetails; bank: BankDetails; prefix: string; nextNo: number }
 export interface Settings {
-  biz: { name: string; address: string; mobile: string; gstin: string; pan: string; state: string };
-  bank: { holder: string; ifsc: string; acc: string; bank: string };
-  prefix: string; nextNo: number; dueDays: number; notes: string; terms: string;
+  sellers: Seller[];
+  /** The firm bills are issued from by default (the switch in the sidebar). */
+  sellerId: string;
+  dueDays: number; notes: string; terms: string;
   signLabel: string; allowNegative: boolean; roundOff: boolean;
   /** Off by default: bills do not touch stock and the stock screens are hidden. */
   trackStock: boolean;

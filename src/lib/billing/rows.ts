@@ -1,5 +1,5 @@
 import { N } from "./calc";
-import { defaults } from "./data";
+import { defaults, normalizeSettings } from "./data";
 import type { BillingData, Customer, Invoice, Item, Movement, Payment, Settings } from "./types";
 
 /** Tables in dependency order: parents first. Deletes run in reverse order, upserts in this order. */
@@ -37,7 +37,7 @@ export function toRowSets(db: BillingData): RowSets {
   for (const c of db.customers) out.customers.set(c.id, { id: c.id, name: c.name, address: c.address, mobile: c.mobile, gstin: c.gstin, pan: c.pan, state: c.state });
   for (const v of db.invoices) {
     out.invoices.set(v.id, {
-      id: v.id, no: v.no, date: v.date || null, due: v.due || null, customer_id: v.custId || null,
+      id: v.id, no: v.no, date: v.date || null, due: v.due || null, seller_id: v.sellerId || null, customer_id: v.custId || null,
       cust_name: v.cust.name, cust_address: v.cust.address, cust_mobile: v.cust.mobile, cust_gstin: v.cust.gstin, cust_pan: v.cust.pan,
       ship_same: !!v.shipSame, ship_name: v.ship.name, ship_address: v.ship.address, pos: v.pos, intra: !!v.intra, round_off_on: !!v.roundOffOn,
       notes: v.notes || "", grand: N(v.grand), status: v.status, created_at: v.createdAt, updated_at: v.updatedAt ?? null, cancelled_at: v.cancelledAt ?? null,
@@ -72,7 +72,7 @@ export function fromRows(r: LoadedRows): BillingData {
     const lines = (linesBy.get(id) ?? []).sort((a, b) => N(a.position) - N(b.position)).map((l) => ({ itemId: s(l.item_id), name: s(l.name), hsn: s(l.hsn), unit: s(l.unit), qty: N(l.qty), rate: N(l.rate), disc: N(l.disc), gst: N(l.gst) }));
     const payments: Payment[] = (paysBy.get(id) ?? []).map((p) => ({ id: s(p.id), date: s(p.date), amount: N(p.amount), mode: s(p.mode), note: s(p.note) }));
     const inv: Invoice = {
-      id, no: s(x.no), date: s(x.date), due: s(x.due), custId: s(x.customer_id),
+      id, no: s(x.no), date: s(x.date), due: s(x.due), sellerId: s(x.seller_id), custId: s(x.customer_id),
       cust: { name: s(x.cust_name), address: s(x.cust_address), mobile: s(x.cust_mobile), gstin: s(x.cust_gstin), pan: s(x.cust_pan) },
       shipSame: !!x.ship_same, ship: { name: s(x.ship_name), address: s(x.ship_address) }, pos: s(x.pos), intra: !!x.intra, roundOffOn: !!x.round_off_on,
       lines, notes: s(x.notes), grand: N(x.grand), payments, status: x.status === "cancelled" ? "cancelled" : "active", createdAt: N(x.created_at),
@@ -84,7 +84,7 @@ export function fromRows(r: LoadedRows): BillingData {
   const ledger: Movement[] = r.stock_movements.map((m) => ({ id: s(m.id), ts: N(m.ts), date: s(m.date), itemId: s(m.item_id), name: s(m.name), qty: N(m.qty), type: m.type as Movement["type"], ref: s(m.ref), note: s(m.note), bal: N(m.bal) })).sort((a, b) => a.ts - b.ts || a.id.localeCompare(b.id));
   return {
     v: doc?.v ?? df.v,
-    settings: { ...df.settings, ...doc?.settings, biz: { ...df.settings.biz, ...doc?.settings?.biz }, bank: { ...df.settings.bank, ...doc?.settings?.bank } },
+    settings: normalizeSettings(doc?.settings),
     meta: { ...df.meta, ...doc?.meta },
     items, customers, invoices, ledger,
   };

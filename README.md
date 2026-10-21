@@ -12,6 +12,12 @@ Features: GST invoices (CGST/SGST or IGST), amount in words, printable original/
 4. Authentication > Providers: keep Email enabled (turn off "Confirm email" for quick testing).
 5. `npm run dev` and open http://localhost:3000. Create an account on the sign-in page; the first sign-in loads sample data from bill no. 49 (clear it in Settings).
 
+## Two firms (Bill from)
+
+The account can bill from two firms: **Sri Angalaeshwari Traders** and **VELAN & CO**. Each firm has its own letterhead, GSTIN, PAN, bank details (including the bank customer ID) and invoice numbers (VELAN & CO starts at `VC-1`). Switch the firm with the **Bill from** buttons at the top of any page, or with the toggle on the New bill screen. Every bill remembers the firm that issued it, so old bills always print with the right details; bills made before this feature belong to the first firm. The Home numbers follow the selected firm, and the Invoices list can be filtered by firm. Edit a firm's details in Settings > Firms you bill from.
+
+Upgrading: re-run `supabase/schema.sql` once (adds `invoices.seller_id`). Existing accounts migrate automatically: the saved business, bank, prefix and next number become the first firm and VELAN & CO is added.
+
 ## Item codes, HSN and GST
 
 Every item has a serial code. The 101 standard items found in the temple indents hold codes `001`-`101`, each with its HSN (4 digits) and usual GST rate; unit and rate are entered by you. Items you add later get `102`, `103`, ... automatically. On the Items page, **Load 101 standard items** adds them (an item you already have with the same name keeps its details and takes the catalogue code; the same button fills HSN and GST on standard items loaded earlier, and never overwrites values you set). Picking an item on a bill fills the line's HSN and GST automatically.

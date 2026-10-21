@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { N, GSTIN_RE, addDays, calcInvoice, inWords, money, plain, round2, round3, todayISO, trimNum, qtyByItem } from "@/lib/billing/calc";
 import { PAY_MODES, STATES } from "@/lib/billing/constants";
-import { addCatalogueItems, applyStock, bumpNext, invById, isIntra, itemById, nextNoStr, stockProblems, uid } from "@/lib/billing/data";
+import { addCatalogueItems, applyStock, bumpNext, invById, isIntra, itemById, nextNoStr, sellerOf, sellerOfInvoice, stockProblems, uid } from "@/lib/billing/data";
 import { CATALOGUE_SIZE } from "@/lib/billing/catalogue";
 import type { Customer, Invoice, Item, Line, Party } from "@/lib/billing/types";
 import { useBilling } from "./billing-provider";
@@ -15,7 +15,7 @@ import { ItemDialog } from "./item-dialogs";
 const DKEY = "billing-desk-draft-v1";
 
 interface Ed {
-  mode: "new" | "edit" | "copy"; id: string | null; no: string; date: string; due: string;
+  mode: "new" | "edit" | "copy"; id: string | null; no: string; date: string; due: string; sellerId: string;
   custId: string; cust: Party; pos: string; shipSame: boolean; ship: { name: string; address: string };
   lines: Line[]; notes: string; received: string; recvMode: string; saveCust: boolean;
 }
@@ -35,7 +35,7 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
     if (mode === "new") {
       try {
         const d = JSON.parse(localStorage.getItem(DKEY) || "null") as Ed | null;
-        if (d && d.mode === "new" && (d.lines.some((l) => l.itemId || l.name) || d.cust.name)) return d;
+        if (d && d.mode === "new" && (d.lines.some((l) => l.itemId || l.name) || d.cust.name)) return { ...d, sellerId: sellerOf(db.settings, d.sellerId).id };
       } catch { /* ignore a corrupt draft */ }
       return base;
     }
@@ -65,19 +65,33 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
   const clearDraft = () => { try { localStorage.removeItem(DKEY); } catch { /* ignore */ } };
 
   function newEd(): Ed {
-    const t = todayISO();
-    return { mode: "new", id: null, no: nextNoStr(db), date: t, due: addDays(t, db.settings.dueDays), custId: "", cust: { name: "", address: "", mobile: "", gstin: "", pan: "" }, pos: db.settings.biz.state, shipSame: true, ship: { name: "", address: "" }, lines: [blankLine()], notes: db.settings.notes, received: "", recvMode: PAY_MODES[0], saveCust: true };
+    const t = todayISO(), sid = db.settings.sellerId;
+    return { mode: "new", id: null, sellerId: sid, no: nextNoStr(db, sid), date: t, due: addDays(t, db.settings.dueDays), custId: "", cust: { name: "", address: "", mobile: "", gstin: "", pan: "" }, pos: sellerOf(db.settings, sid).biz.state, shipSame: true, ship: { name: "", address: "" }, lines: [blankLine()], notes: db.settings.notes, received: "", recvMode: PAY_MODES[0], saveCust: true };
   }
   function fromInvoice(e: Ed, inv: Invoice, m: "edit" | "copy"): Ed {
-    const out: Ed = { ...e, custId: inv.custId || "", cust: { ...inv.cust }, pos: inv.pos, shipSame: inv.shipSame, ship: { ...inv.ship }, notes: inv.notes || "", lines: inv.lines.map((l) => ({ itemId: l.itemId, name: l.name, hsn: l.hsn, unit: l.unit, qty: l.qty, rate: l.rate, disc: l.disc || "", gst: l.gst })), saveCust: false };
+    const sid = sellerOfInvoice(db.settings, inv).id;
+    const out: Ed = { ...e, sellerId: sid, no: nextNoStr(db, sid), custId: inv.custId || "", cust: { ...inv.cust }, pos: inv.pos, shipSame: inv.shipSame, ship: { ...inv.ship }, notes: inv.notes || "", lines: inv.lines.map((l) => ({ itemId: l.itemId, name: l.name, hsn: l.hsn, unit: l.unit, qty: l.qty, rate: l.rate, disc: l.disc || "", gst: l.gst })), saveCust: false };
     return m === "edit" ? { ...out, mode: "edit", id: inv.id, no: inv.no, date: inv.date, due: inv.due } : out;
   }
+
+  /** Changing the firm moves the suggested invoice number to that firm's series and the default place of supply to its state. */
+  const setSeller = (sid: string) => setEd((e) => {
+    if (e.sellerId === sid) return e;
+    const was = sellerOf(db.settings, e.sellerId), now = sellerOf(db.settings, sid);
+    return { ...e, sellerId: sid, no: e.no === nextNoStr(db, e.sellerId) ? nextNoStr(db, sid) : e.no, pos: e.pos === was.biz.state ? now.biz.state : e.pos };
+  });
+  // A new bill follows the "Bill from" switch at the top of the page.
+  useEffect(() => {
+    if (mode === "new") setSeller(db.settings.sellerId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db.settings.sellerId]);
 
   const patch = (p: Partial<Ed>) => setEd((e) => ({ ...e, ...p }));
   const patchCust = (p: Partial<Party>) => setEd((e) => ({ ...e, cust: { ...e.cust, ...p } }));
   const setLine = (i: number, p: Partial<Line>) => setEd((e) => ({ ...e, lines: e.lines.map((l, j) => (j === i ? { ...l, ...p } : l)) }));
 
-  const c = calcInvoice(ed.lines, isIntra(db, ed.pos), db.settings.roundOff);
+  const seller = sellerOf(db.settings, ed.sellerId);
+  const c = calcInvoice(ed.lines, isIntra(db, ed.pos, ed.sellerId), db.settings.roundOff);
   const old = ed.mode === "edit" ? invById(db, ed.id!) : null;
   const track = db.settings.trackStock;
   const gstBad = !!ed.cust.gstin.trim() && !GSTIN_RE.test(ed.cust.gstin.trim().toUpperCase());
@@ -147,8 +161,8 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
     update((d) => {
       const custId = ed.custId || newCustId;
       if (newCustId) d.customers.push({ id: newCustId, state: ed.pos, ...snap });
-      const intra = isIntra(d, ed.pos), prior = old ? invById(d, old.id)! : null;
-      const rec = { no, date: ed.date, due: ed.due, custId, cust: snap, shipSame: ed.shipSame, ship: { name: ed.ship.name.trim(), address: ed.ship.address.trim() }, pos: ed.pos, intra, roundOffOn: prior ? prior.roundOffOn : d.settings.roundOff, lines, notes: ed.notes.trim(), grand: 0 };
+      const intra = isIntra(d, ed.pos, ed.sellerId), prior = old ? invById(d, old.id)! : null;
+      const rec = { no, date: ed.date, due: ed.due, sellerId: ed.sellerId, custId, cust: snap, shipSame: ed.shipSame, ship: { name: ed.ship.name.trim(), address: ed.ship.address.trim() }, pos: ed.pos, intra, roundOffOn: prior ? prior.roundOffOn : d.settings.roundOff, lines, notes: ed.notes.trim(), grand: 0 };
       rec.grand = calcInvoice(lines, rec.intra, rec.roundOffOn).grand;
       if (prior) {
         const prev = { lines: prior.lines.map((l) => ({ ...l })) };
@@ -160,7 +174,7 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
         if (d.settings.trackStock) applyStock(d, inv, null);
         const r = N(ed.received);
         if (r > 0) inv.payments.push({ id: uid(), date: ed.date, amount: round2(Math.min(r, inv.grand)), mode: ed.recvMode, note: "" });
-        bumpNext(d, no);
+        bumpNext(d, no, ed.sellerId);
       }
     });
     clearDraft();
@@ -182,6 +196,15 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
         {fromDraft && <div className="row small muted">Restored your unsaved bill <button className="btn sm" onClick={startNew}>Start a new one</button></div>}
       </div>
       {errs.length > 0 && <div className="err" ref={errRef}><b>Fix these before saving</b><ul>{errs.map((x) => <li key={x}>{x}</li>)}</ul></div>}
+      <div className="card">
+        <div className="lbl">Bill from</div>
+        <div className="segmented" role="group" aria-label="Bill from">
+          {db.settings.sellers.map((s) => (
+            <button key={s.id} type="button" className={s.id === ed.sellerId ? "on" : ""} aria-pressed={s.id === ed.sellerId} onClick={() => setSeller(s.id)}>{s.biz.name || "Business"}</button>
+          ))}
+        </div>
+        <div className="small muted" style={{ marginTop: 8 }}>{[seller.biz.address, seller.biz.gstin && "GSTIN " + seller.biz.gstin, seller.biz.pan && "PAN " + seller.biz.pan].filter(Boolean).join(" · ")}</div>
+      </div>
       <div className="card"><div className="grid3">
         <div className="f"><label htmlFor="e-no">Invoice no.</label><input className="inp" id="e-no" value={ed.no} onChange={(e) => patch({ no: e.target.value })} /></div>
         <div className="f"><label htmlFor="e-date">Invoice date</label><input className="inp" type="date" id="e-date" value={ed.date} onChange={(e) => patch({ date: e.target.value })} /></div>
@@ -251,7 +274,7 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
             <div className="big"><span>Total</span><span>{money(c.grand)}</span></div>
           </div>
           <div className="words">{inWords(c.grand)}</div>
-          <div className="small muted" style={{ marginTop: 6 }}>{c.intra ? "Within " + db.settings.biz.state + ": CGST and SGST" : "Other state: IGST"}</div>
+          <div className="small muted" style={{ marginTop: 6 }}>{c.intra ? "Within " + seller.biz.state + ": CGST and SGST" : "Other state: IGST"}</div>
         </div>
       </div>
       <div className="actbar">

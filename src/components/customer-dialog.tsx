@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import { STATES } from "@/lib/billing/constants";
-import { custById, uid } from "@/lib/billing/data";
+import { activeSeller, custById, uid } from "@/lib/billing/data";
 import { useBilling } from "./billing-provider";
 import { Dialog, ErrorBox } from "./dialog";
 
 export function CustomerDialog({ id, onClose }: { id: string | null; onClose: () => void }) {
   const { db, update, toast } = useBilling();
   const c = id ? custById(db, id) : null;
-  const [f, setF] = useState({ name: c?.name ?? "", address: c?.address ?? "", mobile: c?.mobile ?? "", gstin: c?.gstin ?? "", pan: c?.pan ?? "", state: c?.state ?? db.settings.biz.state });
+  const [f, setF] = useState({ name: c?.name ?? "", address: c?.address ?? "", mobile: c?.mobile ?? "", gstin: c?.gstin ?? "", pan: c?.pan ?? "", state: c?.state ?? activeSeller(db).biz.state });
   const [err, setErr] = useState("");
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
 

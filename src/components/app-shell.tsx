@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { signOut } from "@/app/actions";
 import { Icon } from "./icons";
 import { useBilling } from "./billing-provider";
+import { activeSeller } from "@/lib/billing/data";
 
 const NAV: [string, string, string][] = [
   ["/", "dashboard", "Home"], ["/new", "new", "New bill"], ["/invoices", "invoices", "Invoices"],
@@ -20,10 +21,11 @@ function activeKey(path: string) {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { db, saveState, saveError, email } = useBilling();
+  const { db, update, saveState, saveError, email } = useBilling();
   const path = usePathname();
   const active = activeKey(path);
-  const name = db.settings.biz.name || "Billing Desk";
+  const seller = activeSeller(db);
+  const name = seller.biz.name || "Billing Desk";
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   useEffect(() => { document.title = name; }, [name]);
@@ -31,7 +33,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="shell">
       <aside className="side">
-        <div className="brand"><b>{name}</b><span>Billing and stock</span></div>
+        <div className="brand"><b>{name}</b><span>Billing</span></div>
         <nav className="nav">
           {NAV.map(([href, key, label]) => (
             <Link key={key} href={href} className={key === active ? "on" : ""}><Icon name={key} /><span>{label}</span></Link>
@@ -43,7 +45,20 @@ export function AppShell({ children }: { children: ReactNode }) {
           <form action={signOut} style={{ display: "inline" }}> · <button className="lnk" type="submit">Sign out</button></form>
         </div>
       </aside>
-      <main>{mounted ? children : null}</main>
+      <main>
+        {mounted && db.settings.sellers.length > 1 && (
+          <div className="sellerbar" role="group" aria-label="Bill from">
+            <span className="lbl">Bill from</span>
+            {db.settings.sellers.map((s) => (
+              <button key={s.id} type="button" className={s.id === seller.id ? "on" : ""} aria-pressed={s.id === seller.id}
+                onClick={() => { if (s.id !== seller.id) update((d) => { d.settings.sellerId = s.id; }); }}>
+                {s.biz.name || "Business"}
+              </button>
+            ))}
+          </div>
+        )}
+        {mounted ? children : null}
+      </main>
       <datalist id="gstList">{["0", "0.25", "3", "5", "12", "18", "28", "40"].map((g) => <option key={g} value={g} />)}</datalist>
       <datalist id="unitList">{["KGS", "GMS", "NOS", "PCS", "LTR", "MTR", "BOX", "PKT", "DOZ", "BAG"].map((u) => <option key={u} value={u} />)}</datalist>
     </div>

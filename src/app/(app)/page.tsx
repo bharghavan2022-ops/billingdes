@@ -7,7 +7,7 @@ import { useBilling } from "@/components/billing-provider";
 import { AdjustDialog } from "@/components/item-dialogs";
 import { StatusPill } from "@/components/pill";
 import { dmy, invPaid, invStatus, money, round2, todayISO, trimNum } from "@/lib/billing/calc";
-import { isLow } from "@/lib/billing/data";
+import { activeSeller, isLow, sellerOfInvoice } from "@/lib/billing/data";
 import { download } from "@/lib/billing/export";
 
 export default function DashboardPage() {
@@ -15,14 +15,16 @@ export default function DashboardPage() {
   const router = useRouter();
   const [adjust, setAdjust] = useState("");
   const t = todayISO(), ym = t.slice(0, 7);
-  const act = db.invoices.filter((i) => i.status !== "cancelled");
+  const seller = activeSeller(db);
+  const mine = db.invoices.filter((i) => sellerOfInvoice(db.settings, i).id === seller.id);
+  const act = mine.filter((i) => i.status !== "cancelled");
   const sum = (a: typeof act) => a.reduce((s, i) => s + i.grand, 0);
   const td = act.filter((i) => i.date === t), mo = act.filter((i) => i.date.startsWith(ym));
   const owed = act.reduce((s, i) => s + Math.max(0, round2(i.grand - invPaid(i))), 0);
   const overdue = act.filter((i) => invStatus(i, t) === "overdue").length;
   const track = db.settings.trackStock;
   const low = track ? db.items.filter((i) => i.active && isLow(i)) : [];
-  const recent = [...db.invoices].sort((a, b) => b.createdAt - a.createdAt).slice(0, 6);
+  const recent = [...mine].sort((a, b) => b.createdAt - a.createdAt).slice(0, 6);
   const lb = db.meta.lastBackup, days = lb ? Math.floor((Date.now() - lb) / 864e5) : null;
 
   const backup = () => {
@@ -34,7 +36,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <div className="ph"><h1>Home</h1><Link className="btn primary" href="/new">＋ New bill</Link></div>
+      <div className="ph"><div><h1>Home</h1><div className="small muted">Showing {seller.biz.name || "your business"}. Switch firm with the Bill from buttons above.</div></div><Link className="btn primary" href="/new">＋ New bill</Link></div>
       {db.meta.sampleNote && (
         <div className="note warn">
           <span><b>Sample data loaded from your bill no. 49.</b> The stock quantities are placeholders. Set real stock in Items, and check the business and bank details in Settings.</span>

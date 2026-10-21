@@ -46,14 +46,14 @@ describe("change tracking", () => {
     inv.id = "new1"; inv.no = "50"; inv.createdAt += 1;
     next.invoices.push(inv);
     applyStock(next, inv, null);
-    next.settings.nextNo = 51;
+    next.settings.sellers[0].nextNo = 51;
     const { changes } = diffAgainst(snap, next);
     expect(changes.upserts.invoices).toHaveLength(1);
     expect(changes.upserts.invoice_lines).toHaveLength(3);
     expect(changes.upserts.stock_movements).toHaveLength(3);
     expect(changes.upserts.items).toHaveLength(3); // stock of the three billed items changed
     expect(changes.upserts.customers).toBeUndefined();
-    expect(changes.settings?.settings.nextNo).toBe(51);
+    expect(changes.settings?.settings.sellers[0].nextNo).toBe(51);
     expect(changes.deletes).toEqual({});
   });
   it("deletes removed lines and payments", () => {

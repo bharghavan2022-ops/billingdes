@@ -206,3 +206,12 @@ dialog::backdrop{background:rgba(36,54,49,.35)}
 /* Links styled as buttons (next/link renders <a class="btn">) */
 a.btn{text-decoration:none}
 a.btn.primary{color:var(--accent-ink)}
+
+/* "Bill from" switch (top of every page) */
+.sellerbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-6px 0 16px;padding:8px 10px;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.sellerbar .lbl{font-size:12px;font-weight:600;color:var(--muted);margin-right:2px}
+.sellerbar button{padding:7px 14px;border-radius:999px;border:1px solid var(--field);background:var(--surface);color:var(--ink);font-weight:600}
+.sellerbar button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.segmented{display:inline-flex;flex-wrap:wrap;gap:6px}
+.segmented button{padding:7px 14px;border-radius:999px;border:1px solid var(--field);background:var(--surface);color:var(--ink);font-weight:600}
+.segmented button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}

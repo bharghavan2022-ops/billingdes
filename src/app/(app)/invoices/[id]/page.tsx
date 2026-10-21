@@ -11,7 +11,7 @@ import { PayDialog } from "@/components/pay-dialog";
 import { StatusPill } from "@/components/pill";
 import { N, dmy, invPaid, invStatus, money, round2, todayISO } from "@/lib/billing/calc";
 import { COPIES, type CopyKey } from "@/lib/billing/constants";
-import { invById, itemById, moveStock } from "@/lib/billing/data";
+import { invById, itemById, moveStock, sellerOfInvoice } from "@/lib/billing/data";
 
 const COPY_OPTIONS: [CopyKey, string][] = [["orig", "Original copy"], ["dup", "Duplicate copy"], ["trip", "Triplicate copy"], ["all", "All 3 copies"], ["none", "No copy label"]];
 
@@ -84,7 +84,7 @@ export default function InvoicePage() {
         </div>
       </div>
       <div className="card"><div className="split" style={{ margin: 0 }}>
-        <div><div className="lbl">Customer</div><b>{inv.cust.name}</b><div className="small muted">{inv.cust.mobile}</div>
+        <div><div className="lbl">Issued by</div><div style={{ marginBottom: 10 }}><b>{sellerOfInvoice(db.settings, inv).biz.name}</b><div className="small muted">{sellerOfInvoice(db.settings, inv).biz.gstin && "GSTIN " + sellerOfInvoice(db.settings, inv).biz.gstin}</div></div><div className="lbl">Customer</div><b>{inv.cust.name}</b><div className="small muted">{inv.cust.mobile}</div>
           <div className="row" style={{ marginTop: 12 }}>
             {inv.status !== "cancelled" && <>
               <button className="btn sm" disabled={bal <= 0} onClick={() => setPay(true)}>Record payment</button>

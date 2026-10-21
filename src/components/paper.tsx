@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import { N, dmy, inWords, invPaid, plain, round2, totalsOf, trimNum } from "@/lib/billing/calc";
 import { FULLROWS, LASTROWS } from "@/lib/billing/constants";
+import { sellerOfInvoice } from "@/lib/billing/data";
 import type { BillingData, Invoice } from "@/lib/billing/types";
 
 type Totals = ReturnType<typeof totalsOf>;
@@ -17,8 +18,8 @@ export function Paper({ inv, settings, label }: { inv: Invoice; settings: Billin
 function Page({ inv, settings, c, label, ch, k, n, cols, showDisc }: {
   inv: Invoice; settings: BillingData["settings"]; c: Totals; label: string; ch: number[]; k: number; n: number; cols: string; showDisc: boolean;
 }) {
-  const b = settings.biz, bk = settings.bank, last = k === n - 1, g = { gridTemplateColumns: cols };
-  const paid = invPaid(inv), bal = round2(inv.grand - paid), hasBank = bk.acc || bk.ifsc || bk.holder;
+  const seller = sellerOfInvoice(settings, inv), b = seller.biz, bk = seller.bank, last = k === n - 1, g = { gridTemplateColumns: cols };
+  const paid = invPaid(inv), bal = round2(inv.grand - paid), hasBank = bk.acc || bk.ifsc || bk.holder || bk.customerId;
   const taxRows = c.intra
     ? c.groups.map((x) => (<Fragment key={x.rate}><div><span>CGST @{trimNum(x.rate / 2, 3)}%</span><span>₹{plain(x.cgst)}</span></div><div><span>SGST @{trimNum(x.rate / 2, 3)}%</span><span>₹{plain(x.sgst)}</span></div></Fragment>))
     : c.groups.map((x) => <div key={x.rate}><span>IGST @{trimNum(x.rate, 2)}%</span><span>₹{plain(x.tax)}</span></div>);
@@ -62,7 +63,7 @@ function Page({ inv, settings, c, label, ch, k, n, cols, showDisc }: {
         {last && (
           <div className="p-foot">
             <div className="l">
-              {hasBank && <div className="sec"><h4>BANK DETAILS</h4><div>Name: {bk.holder}</div><div>IFSC Code: {bk.ifsc}</div><div>Account No: {bk.acc}</div><div>Bank: {bk.bank}</div></div>}
+              {hasBank && <div className="sec"><h4>BANK DETAILS</h4><div>Name: {bk.holder}</div><div>IFSC Code: {bk.ifsc}</div><div>Account No: {bk.acc}</div>{bk.customerId && <div>Customer ID: {bk.customerId}</div>}{bk.bank && <div>Bank: {bk.bank}</div>}</div>}
               {inv.notes && <div className="sec"><h4>NOTES</h4><pre>{inv.notes}</pre></div>}
               {settings.terms && <div className="sec"><h4>TERMS AND CONDITIONS</h4><pre>{settings.terms}</pre></div>}
             </div>
