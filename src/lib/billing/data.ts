@@ -88,25 +88,54 @@ export function ensureItemCodes(db: BillingData) {
 }
 
 /**
- * Loads the standard catalogue: name, HSN and GST (no stock or rate; unit is left at the default). An item you already have with the
- * same name keeps its details and takes the catalogue code. Catalogue items loaded earlier without HSN/GST get them filled in.
- * Safe to run more than once.
+ * Loads the standard catalogue: name, HSN and GST, plus the unit and usual rate for the items that appear on your sales invoices. No stock.
+ * An item you already have with the same name keeps its details and takes the catalogue code. Catalogue items loaded earlier without
+ * HSN/GST (or still at the default unit and a zero rate) get those filled in. Safe to run more than once.
  */
 export function addCatalogueItems(db: BillingData): { added: number; linked: number; filled: number } {
   const reserved = new Set(CATALOGUE.map((c) => c.code));
   let added = 0, linked = 0, filled = 0;
+  const fill = (it: Item, c: (typeof CATALOGUE)[number]) => {
+    let did = false;
+    if (!it.hsn && !N(it.gst) && c.hsn) { it.hsn = c.hsn; it.gst = c.gst; did = true; }
+    if (c.rate !== undefined && !N(it.rate) && it.unit === "NOS") { it.rate = c.rate; it.unit = c.unit || it.unit; did = true; }
+    return did;
+  };
   for (const c of CATALOGUE) {
     const byCode = db.items.find((i) => i.code === c.code);
-    if (byCode) {
-      if (!byCode.hsn && !N(byCode.gst) && c.hsn) { byCode.hsn = c.hsn; byCode.gst = c.gst; filled++; }
-      continue;
-    }
+    if (byCode) { if (fill(byCode, c)) filled++; continue; }
     const same = db.items.find((i) => i.name.trim().toLowerCase() === c.name.trim().toLowerCase() && !reserved.has(i.code));
-    if (same) { same.code = c.code; if (!same.hsn && !N(same.gst)) { same.hsn = c.hsn; same.gst = c.gst; } linked++; continue; }
-    db.items.push({ id: uid(), code: c.code, name: c.name, alt: c.english, hsn: c.hsn, unit: "NOS", rate: 0, gst: c.gst, low: 0, stock: 0, active: true });
+    if (same) { same.code = c.code; fill(same, c); linked++; continue; }
+    db.items.push({ id: uid(), code: c.code, name: c.name, alt: c.english, hsn: c.hsn, unit: c.unit || "NOS", rate: c.rate ?? 0, gst: c.gst, low: 0, stock: 0, active: true });
     added++;
   }
   return { added, linked, filled };
+}
+
+/** The 65 catalogue items backed by your sales invoices (they carry a unit and rate). */
+const INVOICE_BACKED = CATALOGUE.filter((c) => c.rate !== undefined);
+const OLD_075 = (name: string) => name.startsWith("வெண்சுண்டல் (");
+const differs = (it: Item, c: (typeof CATALOGUE)[number]) =>
+  it.hsn !== c.hsn || N(it.gst) !== c.gst || it.unit !== c.unit || N(it.rate) !== c.rate || (c.code === "075" && OLD_075(it.name));
+
+/** Items whose HSN, GST, unit or rate differ from your sales invoices. */
+export function itemsDifferingFromInvoices(db: Pick<BillingData, "items">): Item[] {
+  const byCode = new Map(db.items.map((i) => [i.code, i]));
+  return INVOICE_BACKED.flatMap((c) => { const it = byCode.get(c.code); return it && differs(it, c) ? [it] : []; });
+}
+
+/** Sets HSN, GST, unit and default rate of those items to the values on your sales invoices (overwrites). Returns how many changed. */
+export function applyInvoiceRates(db: BillingData): number {
+  let n = 0;
+  const byCode = new Map(db.items.map((i) => [i.code, i]));
+  for (const c of INVOICE_BACKED) {
+    const it = byCode.get(c.code);
+    if (!it || !differs(it, c)) continue;
+    it.hsn = c.hsn; it.gst = c.gst; it.unit = c.unit as string; it.rate = c.rate as number;
+    if (c.code === "075" && OLD_075(it.name)) { it.name = c.name; it.alt = c.english; }
+    n++;
+  }
+  return n;
 }
 
 /** True when the standard list has not been loaded, or loaded items are still missing their HSN/GST. */

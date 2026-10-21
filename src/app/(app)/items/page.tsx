@@ -5,7 +5,8 @@ import { useBilling } from "@/components/billing-provider";
 import { AdjustDialog, HistoryDialog, ItemDialog } from "@/components/item-dialogs";
 import { dmy, money, todayISO, trimNum } from "@/lib/billing/calc";
 import { MOVE_LABEL } from "@/lib/billing/constants";
-import { addCatalogueItems, catalogueNeedsLoading, isLow, itemById } from "@/lib/billing/data";
+import { addCatalogueItems, applyInvoiceRates, catalogueNeedsLoading, isLow, itemById, itemsDifferingFromInvoices } from "@/lib/billing/data";
+import { ConfirmDialog } from "@/components/dialog";
 import { CATALOGUE_SIZE } from "@/lib/billing/catalogue";
 import { download, stockCsv } from "@/lib/billing/export";
 
@@ -21,6 +22,8 @@ export default function ItemsPage() {
   const [dlg, setDlg] = useState<Dlg>(null);
   const ql = q.trim().toLowerCase();
   const track = db.settings.trackStock;
+  const [confirmRates, setConfirmRates] = useState(false);
+  const differing = itemsDifferingFromInvoices(db).length;
 
   const showMoves = track && tab === "moves";
   let list = db.items.filter((i) => !ql || (i.code + " " + i.name + " " + i.alt + " " + i.hsn).toLowerCase().includes(ql));
@@ -35,6 +38,12 @@ export default function ItemsPage() {
         <div className="note">
           <span><b>Standard item list ({CATALOGUE_SIZE} items, codes 001–{CATALOGUE_SIZE}, with HSN and GST).</b> {CATALOGUE_LOADED(db) ? "Fill in the HSN and GST of the standard items." : "Load them once; you only set the rate yourself."} Items you add later continue from {String(CATALOGUE_SIZE + 1)}. Check the GST rates with your tax consultant.</span>
           <button className="btn sm primary" onClick={() => { let r = { added: 0, linked: 0, filled: 0 }; update((d) => { r = addCatalogueItems(d); }); toast(r.added || r.linked || r.filled ? `${r.added} items added${r.linked ? `, ${r.linked} existing linked to their codes` : ""}${r.filled ? `, HSN and GST filled for ${r.filled}` : ""}` : "Nothing new to add"); }}>{CATALOGUE_LOADED(db) ? "Fill HSN and GST" : `Load ${CATALOGUE_SIZE} standard items`}</button>
+        </div>
+      )}
+      {!catalogueNeedsLoading(db) && differing > 0 && (
+        <div className="note">
+          <span><b>{differing} standard items differ from your sales invoices.</b> Update their HSN, GST, unit and default rate to the values on your invoices (items that are not on the invoices keep what they have).</span>
+          <button className="btn sm primary" onClick={() => setConfirmRates(true)}>Update from invoices</button>
         </div>
       )}
       {track && (
@@ -84,6 +93,9 @@ export default function ItemsPage() {
           </table>
         ) : <div className="empty">No stock movements yet.</div>}
       </div></div>
+      {confirmRates && <ConfirmDialog title="Update from your invoices?" okLabel={`Update ${differing} items`} onClose={() => setConfirmRates(false)}
+        message={`This sets the HSN, GST, unit and default rate of ${differing} standard items to the values on your sales invoices. Any change you made to those fields on these items will be replaced. Bills you already made are not changed.`}
+        onOk={() => { let n = 0; update((d) => { n = applyInvoiceRates(d); }); toast(`${n} items updated from your invoices`); }} />}
       {dlg?.kind === "edit" && <ItemDialog id={dlg.id} onClose={() => setDlg(null)} />}
       {dlg?.kind === "adjust" && <AdjustDialog id={dlg.id} onClose={() => setDlg(null)} />}
       {dlg?.kind === "hist" && <HistoryDialog id={dlg.id} onClose={() => setDlg(null)} />}

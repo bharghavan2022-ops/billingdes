@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CATALOGUE, CATALOGUE_SIZE } from "@/lib/billing/catalogue";
-import { addCatalogueItems, catalogueNeedsLoading, defaults, ensureItemCodes, migrate, nextItemCode, seed } from "@/lib/billing/data";
+import { addCatalogueItems, applyInvoiceRates, catalogueNeedsLoading, defaults, itemsDifferingFromInvoices, ensureItemCodes, migrate, nextItemCode, seed } from "@/lib/billing/data";
 
 describe("item catalogue", () => {
   it("has 101 items with serial codes 001-101 and no duplicate names", () => {
@@ -9,11 +9,12 @@ describe("item catalogue", () => {
     expect(new Set(CATALOGUE.map((c) => c.name)).size).toBe(101);
     expect(CATALOGUE.every((c) => c.name.trim() && c.english.trim() && c.category)).toBe(true);
   });
-  it("loads names with HSN and GST but no stock, rate or movements", () => {
+  it("loads names, HSN and GST (and the invoice unit and rate where known) but no stock or movements", () => {
     const db = defaults();
     expect(addCatalogueItems(db)).toEqual({ added: 101, linked: 0, filled: 0 });
-    expect(db.items.every((i) => i.stock === 0 && i.rate === 0 && i.active)).toBe(true);
-    expect(db.items.filter((i) => i.code !== "075").every((i) => /^\d{4}$/.test(i.hsn))).toBe(true);
+    expect(db.items.every((i) => i.stock === 0 && i.active)).toBe(true);
+    expect(db.items.every((i) => /^\d{4}$/.test(i.hsn))).toBe(true);
+    expect(db.items.filter((i) => i.rate > 0)).toHaveLength(65); // only the items on your sales invoices have a rate
     expect(db.ledger).toHaveLength(0);
     expect(db.items[0]).toMatchObject({ code: "001", name: "பொன்னி பச்சரிசி", alt: "Ponni raw rice" });
   });
@@ -64,11 +65,11 @@ describe("item codes", () => {
 
 describe("HSN and GST", () => {
   const rate = (code: string) => CATALOGUE.find((c) => c.code === code)!;
-  it("every item has a 4-digit HSN (except the unreadable 075) and a valid GST slab", () => {
+  it("every item has a 4-digit HSN and a valid GST slab", () => {
     for (const c of CATALOGUE) {
       expect([0, 5, 12, 18]).toContain(c.gst);
       expect(["", "P", "V"]).toContain(c.gstNote);
-      if (c.code !== "075") expect(c.hsn).toMatch(/^\d{4}$/);
+      expect(c.hsn).toMatch(/^\d{4}$/);
     }
   });
   it("spot checks of well-known rates", () => {
@@ -87,7 +88,7 @@ describe("HSN and GST", () => {
     expect(catalogueNeedsLoading(db)).toBe(true);
     const r = addCatalogueItems(db);
     expect(r.added).toBe(0);
-    expect(r.filled).toBe(100); // 075 has no HSN to fill
+    expect(r.filled).toBe(101);
     expect(db.items.find((i) => i.code === "054")).toMatchObject({ hsn: "1701", gst: 5 });
     expect(catalogueNeedsLoading(db)).toBe(false);
   });
@@ -107,3 +108,61 @@ describe("stock tracking", () => {
     expect(migrate({ settings: { signLabel: "x" } as never }).settings.trackStock).toBe(false);
   });
 });
+
+describe("values from your sales invoices", () => {
+  const c = (code: string) => CATALOGUE.find((x) => x.code === code)!;
+  it("65 items carry the unit and rate from the invoices; the other 36 do not", () => {
+    expect(CATALOGUE.filter((x) => x.rate !== undefined)).toHaveLength(65);
+    expect(CATALOGUE.filter((x) => x.rate === undefined)).toHaveLength(36);
+  });
+  it("uses the invoice HSN, GST, unit and rate", () => {
+    expect(c("013")).toMatchObject({ name: "துவரம் பருப்பு", hsn: "0713", gst: 0, unit: "KGS", rate: 124 }); // loose pulses are nil
+    expect(c("041")).toMatchObject({ hsn: "0910", gst: 5, unit: "KGS", rate: 611 });                       // dry ginger
+    expect(c("067")).toMatchObject({ hsn: "1517", gst: 5, unit: "LTR", rate: 190 });                       // refined oil
+    expect(c("069")).toMatchObject({ hsn: "0405", gst: 5, unit: "LTR", rate: 742 });                       // ghee
+    expect(c("090")).toMatchObject({ hsn: "3401", gst: 18, unit: "NOS", rate: 35 });                       // washing soap
+    expect(c("100")).toMatchObject({ hsn: "6505", gst: 18, unit: "PKT", rate: 8.5 });                      // head cap
+    expect(c("084")).toMatchObject({ hsn: "4401", gst: 0, unit: "BDL", rate: 7.76 });                      // samidh sticks
+  });
+  it("item 075 is now named from the invoices", () => {
+    expect(c("075")).toMatchObject({ name: "வெண்சுண்டல்", hsn: "0713", gst: 0, rate: 85 });
+  });
+  const oldLoaded = () => {
+    const db = defaults();
+    addCatalogueItems(db);
+    const toor = db.items.find((i) => i.code === "013")!;
+    Object.assign(toor, { gst: 5, rate: 99, unit: "NOS" });          // what an earlier version loaded
+    const pen = db.items.find((i) => i.code === "097")!;
+    Object.assign(pen, { gst: 18, rate: 0, unit: "NOS" });
+    const old75 = db.items.find((i) => i.code === "075")!;
+    Object.assign(old75, { name: "வெண்சுண்டல் (பெயரை உறுதிசெய்யவும்)", hsn: "", gst: 0, rate: 0, unit: "NOS" });
+    return db;
+  };
+  it("finds items that differ from the invoices and updates only those", () => {
+    const db = oldLoaded();
+    const mine = db.items.find((i) => i.code === "054")!; // sugar: set it up to differ? no - leave as loaded, it matches
+    expect(itemsDifferingFromInvoices(db).map((i) => i.code).sort()).toEqual(["013", "075", "097"]);
+    expect(applyInvoiceRates(db)).toBe(3);
+    expect(db.items.find((i) => i.code === "013")).toMatchObject({ gst: 0, rate: 124, unit: "KGS", hsn: "0713" });
+    expect(db.items.find((i) => i.code === "097")).toMatchObject({ gst: 0, rate: 4.85, hsn: "9608" });
+    expect(db.items.find((i) => i.code === "075")).toMatchObject({ name: "வெண்சுண்டல்", hsn: "0713", rate: 85 });
+    expect(mine.gst).toBe(5);
+    expect(itemsDifferingFromInvoices(db)).toHaveLength(0);
+    expect(applyInvoiceRates(db)).toBe(0);
+  });
+  it("leaves the items that are not on your invoices alone", () => {
+    const db = oldLoaded();
+    const rice = db.items.find((i) => i.code === "001")!; // not on any invoice
+    Object.assign(rice, { gst: 5, rate: 55, hsn: "1006" });
+    applyInvoiceRates(db);
+    expect(rice).toMatchObject({ gst: 5, rate: 55 });
+  });
+  it("a fresh load of an earlier name-only list fills the invoice rate and unit too", () => {
+    const db = defaults();
+    addCatalogueItems(db);
+    for (const i of db.items) { i.hsn = ""; i.gst = 0; i.rate = 0; i.unit = "NOS"; }
+    addCatalogueItems(db);
+    expect(db.items.find((i) => i.code === "041")).toMatchObject({ hsn: "0910", gst: 5, rate: 611, unit: "KGS" });
+  });
+});
+

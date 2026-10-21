@@ -60,7 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {mounted ? children : null}
       </main>
       <datalist id="gstList">{["0", "0.25", "3", "5", "12", "18", "28", "40"].map((g) => <option key={g} value={g} />)}</datalist>
-      <datalist id="unitList">{["KGS", "GMS", "NOS", "PCS", "LTR", "MTR", "BOX", "PKT", "DOZ", "BAG"].map((u) => <option key={u} value={u} />)}</datalist>
+      <datalist id="unitList">{["KGS", "GMS", "NOS", "PCS", "LTR", "MTR", "BOX", "PKT", "DOZ", "BAG", "BDL"].map((u) => <option key={u} value={u} />)}</datalist>
     </div>
   );
 }

@@ -22,7 +22,9 @@ Upgrading: re-run `supabase/schema.sql` once (adds `invoices.seller_id`). Existi
 
 Every item has a serial code. The 101 standard items found in the temple indents hold codes `001`-`101`, each with its HSN (4 digits) and usual GST rate; unit and rate are entered by you. Items you add later get `102`, `103`, ... automatically. On the Items page, **Load 101 standard items** adds them (an item you already have with the same name keeps its details and takes the catalogue code; the same button fills HSN and GST on standard items loaded earlier, and never overwrites values you set). Picking an item on a bill fills the line's HSN and GST automatically.
 
-The GST rates are best-effort. Items marked `*` in [`docs/item-catalogue.pdf`](docs/item-catalogue.pdf) must be verified, and `†` rates depend on packing (pre-packed, branded goods are 5%, loose goods are nil). Check every rate with your tax consultant before billing. The data lives in `src/lib/billing/catalogue.ts`.
+65 of the 101 items match your sales invoices (no. 37 to 43), so their HSN, GST, unit and default rate come from those invoices; item 075 is named "வெண்சுண்டல்" from them. If the standard items were loaded earlier with other values, the Items page shows **Update from invoices**, which overwrites HSN, GST, unit and rate on those 65 items after a confirmation. The other 36 items have estimated HSN and GST and no rate.
+
+The remaining GST rates are best-effort. Items marked `*` in [`docs/item-catalogue.pdf`](docs/item-catalogue.pdf) must be verified, and `†` rates depend on packing (pre-packed, branded goods are 5%, loose goods are nil). Check every rate with your tax consultant before billing. The data lives in `src/lib/billing/catalogue.ts`.
 
 After updating, re-run `supabase/schema.sql` once in the Supabase SQL Editor (it adds the `code` column and updates the save function).
 
