@@ -12,6 +12,7 @@ import { applyStock, sellerOfInvoice } from "@/lib/billing/data";
 export default function PastBillsPage() {
   const { db, update, toast } = useBilling();
   const [del, setDel] = useState<string | null>(null);
+  const [delAll, setDelAll] = useState(false);
   const delInv = db.invoices.find((i) => i.id === del);
   const [q, setQ] = useState("");
   const t = todayISO(), ql = q.trim().toLowerCase();
@@ -21,7 +22,7 @@ export default function PastBillsPage() {
 
   return (
     <>
-      <div className="ph"><h1>Past bills</h1></div>
+      <div className="ph"><h1>Past bills</h1>{db.invoices.length > 0 && <button className="btn danger" onClick={() => setDelAll(true)}>Delete all bills</button>}</div>
       <div className="small muted" style={{ marginBottom: 10 }}>Pick a past bill and duplicate it to start a new bill with the same customer and items. Rates and GST are copied as they were; the invoice number, date and payments start fresh.</div>
       <div className="bar-tools"><input className="inp" placeholder="Search number, customer or item" value={q} onChange={(e) => setQ(e.target.value)} /></div>
       <div className="card" style={{ padding: 0 }}><div className="tw">
@@ -39,6 +40,11 @@ export default function PastBillsPage() {
           </table>
         ) : <div className="empty">No past bills yet. Bills you save appear here.</div>}
       </div></div>
+      {delAll && (
+        <ConfirmDialog title="Delete all bills" danger okLabel="Delete all bills" onClose={() => setDelAll(false)}
+          message={<>Delete all <b>{db.invoices.length}</b> bills and their payments, and start the invoice numbers of both firms again from 1? Your customers and items are kept. This cannot be undone.</>}
+          onOk={() => { const n = db.invoices.length; update((d) => { if (d.settings.trackStock) for (const inv of d.invoices) if (inv.status !== "cancelled") applyStock(d, { ...inv, lines: [] }, inv); d.invoices = []; for (const sl of d.settings.sellers) sl.nextNo = 1; }); setDelAll(false); toast(n + " bills deleted; numbering starts from 1"); }} />
+      )}
       {delInv && (
         <ConfirmDialog title="Delete bill" danger okLabel="Delete bill" onClose={() => setDel(null)}
           message={<>Delete bill <b>{delInv.no}</b> for {delInv.cust.name} ({money(delInv.grand)})? This removes the bill and its payments for good and cannot be undone.</>}
