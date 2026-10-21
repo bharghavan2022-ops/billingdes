@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 const ROWS: { label: string; keys: string[] }[] = [
   { label: "Vowels", keys: ["அ", "ஆ", "இ", "ஈ", "உ", "ஊ", "எ", "ஏ", "ஐ", "ஒ", "ஓ", "ஔ", "ஃ"] },
@@ -59,11 +60,20 @@ export function TamilKeyboard() {
     return () => { document.body.style.paddingBottom = ""; };
   }, [shown, pos]);
 
+  // A field inside a dialog sits in the browser's top layer, so the keyboard must live inside that dialog to be visible.
+  const host = target?.closest("dialog") ?? null;
+  useEffect(() => {
+    if (!shown || !host) return;
+    // Move the dialog to the top of the screen so the keyboard below it covers as little as possible.
+    host.style.marginTop = "12px"; host.style.marginBottom = "auto";
+    return () => { host.style.marginTop = ""; host.style.marginBottom = ""; };
+  }, [shown, host]);
+
   if (!target || closed) return null;
   const type = (k: string) => insert(target, k);
   const style = pos ? { left: pos.x, top: pos.y, transform: "none" } : undefined;
 
-  return (
+  const kb = (
     <div ref={box} className="tkb" style={style} role="group" aria-label="Tamil keyboard" onMouseDown={(e) => e.preventDefault()}>
       <div className="tkb-bar"
         onPointerDown={(e) => { const r = box.current!.getBoundingClientRect(); drag.current = { dx: e.clientX - r.left, dy: e.clientY - r.top }; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); }}
@@ -85,4 +95,5 @@ export function TamilKeyboard() {
       </div>
     </div>
   );
+  return createPortal(kb, host ?? document.body);
 }
