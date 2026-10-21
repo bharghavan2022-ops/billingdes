@@ -42,6 +42,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="foot">
           {saveState === "error" ? <span style={{ color: "var(--bad)" }}>Not saved: {saveError}</span> : saveState === "saving" ? "Saving…" : "All changes saved"}
           <br />{email}
+          <div className="small" style={{ marginTop: 6, opacity: 0.8 }}>Version {process.env.NEXT_PUBLIC_BUILD_ID}</div>
           <form action={signOut} style={{ display: "inline" }}> · <button className="lnk" type="submit">Sign out</button></form>
         </div>
       </aside>
