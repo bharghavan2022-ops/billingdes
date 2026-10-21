@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { N, GSTIN_RE, addDays, calcInvoice, inWords, money, plain, round2, round3, todayISO, trimNum, qtyByItem } from "@/lib/billing/calc";
+import { N, GSTIN_RE, addDays, baseQty, calcInvoice, inWords, money, plain, round2, round3, subUnitOf, todayISO, trimNum, qtyByItem } from "@/lib/billing/calc";
 import { PAY_MODES, STATES } from "@/lib/billing/constants";
 import { addCatalogueItems, applyStock, bumpNext, invById, isIntra, itemById, nextNoStr, sellerOf, sellerOfInvoice, stockProblems, uid } from "@/lib/billing/data";
 import { CATALOGUE_SIZE } from "@/lib/billing/catalogue";
-import type { Customer, Invoice, Item, Line, Party } from "@/lib/billing/types";
+import type { Customer, Invoice, Item, Line, Party, SubUnit } from "@/lib/billing/types";
 import { useBilling } from "./billing-provider";
 import { ComboInput, type ComboOption } from "./combo-input";
 import { ItemDialog } from "./item-dialogs";
@@ -19,6 +19,11 @@ interface Ed {
   custId: string; cust: Party; pos: string; shipSame: boolean; ship: { name: string; address: string };
   lines: Line[]; notes: string; received: string; recvMode: string; saveCust: boolean;
 }
+/** A saved quantity under 1 kg (or 1 litre) is shown in grams (millilitres) so it reads the way it was typed. */
+const asTyped = (l: Line): Line => {
+  const sub = subUnitOf(l.unit), q = N(l.qty);
+  return sub && q > 0 && q < 1 ? { ...l, qty: trimNum(round3(q * 1000), 3), qtyUnit: sub } : l;
+};
 const blankLine = (): Line => ({ itemId: "", name: "", hsn: "", unit: "", qty: "", rate: "", disc: "", gst: "" });
 
 export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?: string }) {
@@ -70,7 +75,7 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
   }
   function fromInvoice(e: Ed, inv: Invoice, m: "edit" | "copy"): Ed {
     const sid = sellerOfInvoice(db.settings, inv).id;
-    const out: Ed = { ...e, sellerId: sid, no: nextNoStr(db, sid), custId: inv.custId || "", cust: { ...inv.cust }, pos: inv.pos, shipSame: inv.shipSame, ship: { ...inv.ship }, notes: inv.notes || "", lines: inv.lines.map((l) => ({ itemId: l.itemId, name: l.name, hsn: l.hsn, unit: l.unit, qty: l.qty, rate: l.rate, disc: l.disc || "", gst: l.gst })), saveCust: false };
+    const out: Ed = { ...e, sellerId: sid, no: nextNoStr(db, sid), custId: inv.custId || "", cust: { ...inv.cust }, pos: inv.pos, shipSame: inv.shipSame, ship: { ...inv.ship }, notes: inv.notes || "", lines: inv.lines.map((l) => asTyped({ itemId: l.itemId, name: l.name, hsn: l.hsn, unit: l.unit, qty: l.qty, rate: l.rate, disc: l.disc || "", gst: l.gst })), saveCust: false };
     return m === "edit" ? { ...out, mode: "edit", id: inv.id, no: inv.no, date: inv.date, due: inv.due } : out;
   }
 
@@ -88,6 +93,14 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
 
   const patch = (p: Partial<Ed>) => setEd((e) => ({ ...e, ...p }));
   const patchCust = (p: Partial<Party>) => setEd((e) => ({ ...e, cust: { ...e.cust, ...p } }));
+  /** Switching between kg and g (litre and ml) converts the number typed, so the quantity stays the same. */
+  const changeQtyUnit = (i: number, to: SubUnit | undefined) => setEd((e) => ({
+    ...e, lines: e.lines.map((l, j) => {
+      if (j !== i || l.qtyUnit === to) return l;
+      const base = baseQty(l);
+      return { ...l, qtyUnit: to, qty: l.qty === "" ? "" : to ? trimNum(round3(base * 1000), 3) : trimNum(base, 4) };
+    }),
+  }));
   const setLine = (i: number, p: Partial<Line>) => setEd((e) => ({ ...e, lines: e.lines.map((l, j) => (j === i ? { ...l, ...p } : l)) }));
 
   const seller = sellerOf(db.settings, ed.sellerId);
@@ -100,13 +113,13 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
     const l = ed.lines[i], it = l.itemId ? itemById(db, l.itemId) : null;
     if (!it) return null;
     const om = old ? qtyByItem(old.lines) : {};
-    const others = ed.lines.reduce((s, x, j) => (j !== i && x.itemId === l.itemId ? s + N(x.qty) : s), 0);
+    const others = ed.lines.reduce((s, x, j) => (j !== i && x.itemId === l.itemId ? s + baseQty(x) : s), 0);
     return { it, avail: round3(it.stock + (om[l.itemId] || 0) - others) };
   }
 
   function pickItem(i: number, it: Pick<Item, "id" | "name" | "hsn" | "unit" | "rate" | "gst">) {
     setEd((e) => {
-      const lines = e.lines.map((l, j) => (j === i ? { ...l, itemId: it.id, name: it.name, hsn: it.hsn, unit: it.unit, rate: it.rate, gst: it.gst, qty: N(l.qty) ? l.qty : 1 } : l));
+      const lines = e.lines.map((l, j) => (j === i ? { ...l, itemId: it.id, name: it.name, hsn: it.hsn, unit: it.unit, rate: it.rate, gst: it.gst, qtyUnit: undefined, qty: N(l.qty) && !l.qtyUnit ? l.qty : 1 } : l));
       if (i === lines.length - 1) lines.push(blankLine());
       return { ...e, lines };
     });
@@ -141,7 +154,7 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
   };
 
   function save(print: boolean) {
-    const lines: Line[] = ed.lines.filter((l) => l.itemId || String(l.name).trim() || N(l.qty)).map((l) => ({ itemId: l.itemId, name: String(l.name).trim(), hsn: l.hsn, unit: l.unit, qty: N(l.qty), rate: N(l.rate), disc: N(l.disc), gst: N(l.gst) }));
+    const lines: Line[] = ed.lines.filter((l) => l.itemId || String(l.name).trim() || N(l.qty)).map((l) => ({ itemId: l.itemId, name: String(l.name).trim(), hsn: l.hsn, unit: l.unit, qty: round3(baseQty(l)), rate: N(l.rate), disc: N(l.disc), gst: N(l.gst) }));
     const no = ed.no.trim(), errors: string[] = [];
     if (!no) errors.push("Enter an invoice number."); else if (db.invoices.some((i) => i.no === no && i.id !== ed.id)) errors.push(`Invoice number ${no} is already used.`);
     if (!ed.date) errors.push("Choose the invoice date.");
@@ -232,7 +245,7 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
         <div className="ln-head"><span></span><span>Item</span><span>HSN</span><span>Qty</span><span>Rate ₹</span><span>Disc %</span><span>GST %</span><span style={{ textAlign: "right" }}>Amount</span><span></span></div>
         <div ref={linesRef}>
           {ed.lines.map((l, i) => {
-            const a = avail(i), over = a ? N(l.qty) > a.avail + 1e-9 : false, it = l.itemId ? itemById(db, l.itemId) : null;
+            const a = avail(i), over = a ? baseQty(l) > a.avail + 1e-9 : false, it = l.itemId ? itemById(db, l.itemId) : null;
             return (
               <div className="ln" data-i={i} key={i}>
                 <div className="ln-no">{i + 1}</div>
@@ -240,9 +253,18 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
                   <ComboInput className="inp" placeholder="Search item (Tamil or English)" tabPicks value={l.name} onValueChange={(v) => setLine(i, { name: v, itemId: "" })} options={itemOptions(i)} />
                   <div className={"hint" + (over && !db.settings.allowNegative ? " bad" : "")}>{track && a ? (over ? `Only ${trimNum(Math.max(a.avail, 0), 3)} ${a.it.unit} available` : `In stock: ${trimNum(a.avail, 3)} ${a.it.unit}`) : ""}</div></div>
                 <div className="f c-hsn"><label>HSN</label><input className="inp" inputMode="numeric" value={l.hsn} onChange={(e) => setLine(i, { hsn: e.target.value })} /></div>
-                <div className="f"><label>Qty <span className="u">{l.unit}</span></label><input className="inp" type="number" step="any" min="0" inputMode="decimal" data-f="qty" value={l.qty} onChange={(e) => setLine(i, { qty: e.target.value })} /></div>
+                <div className="f"><label>Qty <span className="u">{l.qtyUnit || l.unit}</span></label>
+                  <div className="qtyrow">
+                    <input className="inp" type="number" step="any" min="0" inputMode="decimal" data-f="qty" value={l.qty} onChange={(e) => setLine(i, { qty: e.target.value })} />
+                    {subUnitOf(l.unit) && (
+                      <select className="inp unitsel" aria-label="Quantity unit" value={l.qtyUnit ? "sub" : "base"} onChange={(e) => changeQtyUnit(i, e.target.value === "sub" ? subUnitOf(l.unit)! : undefined)}>
+                        <option value="base">{l.unit}</option><option value="sub">{subUnitOf(l.unit)}</option>
+                      </select>
+                    )}
+                  </div>
+                  {l.qtyUnit && <div className="hint">= {trimNum(baseQty(l), 4)} {l.unit}</div>}</div>
                 <div className="f"><label>Rate ₹</label><input className="inp" type="number" step="any" min="0" inputMode="decimal" value={l.rate} onChange={(e) => setLine(i, { rate: e.target.value })} />
-                  <div className="hint">{it && N(l.rate) !== N(it.rate) && <button className="lnk" onClick={() => { update((d) => { itemById(d, it.id)!.rate = N(l.rate); }); toast("Default rate for " + it.name + " updated"); }}>Make ₹{trimNum(l.rate || 0, 2)} the default</button>}</div></div>
+                  <div className="hint">{subUnitOf(l.unit) && <span>per 1 {l.unit}</span>}{it && N(l.rate) !== N(it.rate) && <button className="lnk" onClick={() => { update((d) => { itemById(d, it.id)!.rate = N(l.rate); }); toast("Default rate for " + it.name + " updated"); }}>Make ₹{trimNum(l.rate || 0, 2)} the default</button>}</div></div>
                 <div className="f"><label>Disc %</label><input className="inp" type="number" step="any" min="0" max="100" inputMode="decimal" value={l.disc} onChange={(e) => setLine(i, { disc: e.target.value })} /></div>
                 <div className="f"><label>GST %</label><input className="inp" type="number" step="any" min="0" list="gstList" inputMode="decimal" value={l.gst} onChange={(e) => setLine(i, { gst: e.target.value })} /></div>
                 <div className="ln-amt"><label>Amount</label><b>{plain(c.rows[i].amount)}</b></div>

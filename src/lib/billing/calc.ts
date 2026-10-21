@@ -1,4 +1,4 @@
-import type { Invoice, Line } from "./types";
+import type { Invoice, Line, SubUnit } from "./types";
 
 export const round2 = (x: number) => Math.round((Number(x) + Number.EPSILON) * 100) / 100;
 export const round3 = (x: number) => Math.round((Number(x) + Number.EPSILON) * 1000) / 1000;
@@ -7,8 +7,21 @@ export function N(v: unknown): number {
   return isFinite(n) ? n : 0;
 }
 
-export function calcLine(l: Pick<Line, "qty" | "rate" | "disc" | "gst">) {
-  const qty = N(l.qty), rate = N(l.rate), gst = N(l.gst);
+/**
+ * Rates are per 1 kg (or per 1 litre). A weight can be typed in grams (a volume in millilitres): it is divided by 1000, so
+ * 250 g at Rs 124/kg is 0.25 kg = Rs 31, and 2.5 kg is Rs 310. Quantity and amount always scale in proportion.
+ */
+export function subUnitOf(unit: string): SubUnit | null {
+  const u = String(unit || "").trim().toUpperCase();
+  if (u === "KGS" || u === "KG") return "g";
+  if (u === "LTR" || u === "LTRS" || u === "L") return "ml";
+  return null;
+}
+/** The quantity in the item's own unit (kg or litre), whichever unit it was typed in. */
+export const baseQty = (l: { qty: unknown; qtyUnit?: SubUnit }) => N(l.qty) / (l.qtyUnit ? 1000 : 1);
+
+export function calcLine(l: Pick<Line, "qty" | "rate" | "disc" | "gst" | "qtyUnit">) {
+  const qty = baseQty(l), rate = N(l.rate), gst = N(l.gst);
   const disc = Math.min(100, Math.max(0, N(l.disc)));
   const gross = round2(qty * rate);
   const discAmt = round2((gross * disc) / 100);
@@ -25,7 +38,7 @@ export function calcInvoice(lines: Line[], intra: boolean, roundOff: boolean) {
   for (const l of lines) {
     const c = calcLine(l);
     rows.push(c);
-    qty += N(l.qty); taxable += c.taxable; tax += c.tax; disc += c.discAmt;
+    qty += baseQty(l); taxable += c.taxable; tax += c.tax; disc += c.discAmt;
     const g = N(l.gst);
     if (g > 0) {
       if (!by[g]) by[g] = { taxable: 0, tax: 0 };
@@ -74,6 +87,12 @@ export function inWords(amount: number): string {
 export const plain = (n: number) =>
   Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const money = (n: number) => "₹" + plain(n);
+/** How a quantity is printed: under 1 kg as grams (GMS), under 1 litre as millilitres (ML), otherwise in the item's own unit. */
+export function fmtQty(qty: number | string, unit: string): string {
+  const q = N(qty), sub = subUnitOf(unit);
+  if (sub && q > 0 && q < 1) return `${trimNum(round3(q * 1000), 3)} ${sub === "g" ? "GMS" : "ML"}`;
+  return `${trimNum(q, 3)} ${unit}`;
+}
 export const trimNum = (n: number | string, max: number) => String(parseFloat(Number(n).toFixed(max)));
 
 export const isoOf = (d: Date) =>
@@ -93,7 +112,7 @@ export function qtyByItem(lines: Line[]) {
   const m: Record<string, number> = {};
   for (const l of lines) {
     if (!l.itemId) continue;
-    m[l.itemId] = round3((m[l.itemId] || 0) + N(l.qty));
+    m[l.itemId] = round3((m[l.itemId] || 0) + baseQty(l));
   }
   return m;
 }

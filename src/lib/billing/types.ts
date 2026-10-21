@@ -4,9 +4,13 @@ export interface Item {
   id: string; name: string; alt: string; hsn: string; unit: string;
   code: string; rate: number; gst: number; low: number; stock: number; active: boolean;
 }
+/** A smaller unit for typing weights and volumes: grams for a KGS item, millilitres for a LTR item. */
+export type SubUnit = "g" | "ml";
 export interface Line {
   itemId: string; name: string; hsn: string; unit: string;
   qty: number | string; rate: number | string; disc: number | string; gst: number | string;
+  /** Editor only: qty is typed in this smaller unit (1000 of it = 1 unit). Saved bills always hold the quantity in the item's own unit. */
+  qtyUnit?: SubUnit;
 }
 export interface Payment { id: string; date: string; amount: number; mode: string; note: string }
 export type InvoiceStatusKey = "paid" | "partial" | "unpaid" | "overdue" | "cancelled";

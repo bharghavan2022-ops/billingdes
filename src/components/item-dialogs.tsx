@@ -47,7 +47,7 @@ export function ItemDialog({ id, preset, onClose, onSaved }: { id: string | null
       <div className="grid3">
         <div className="f"><label htmlFor="i-hsn">HSN code</label><input className="inp" id="i-hsn" inputMode="numeric" value={f.hsn} onChange={set("hsn")} /></div>
         <div className="f"><label htmlFor="i-unit">Unit</label><input className="inp" id="i-unit" list="unitList" value={f.unit} onChange={set("unit")} /></div>
-        <div className="f"><label htmlFor="i-rate">Default rate ₹</label><input className="inp" id="i-rate" type="number" step="any" min="0" inputMode="decimal" value={f.rate} onChange={set("rate")} /></div>
+        <div className="f"><label htmlFor="i-rate">Default rate ₹ per {(f.unit.trim() || "unit").toUpperCase()}</label><input className="inp" id="i-rate" type="number" step="any" min="0" inputMode="decimal" value={f.rate} onChange={set("rate")} /></div>
       </div>
       <div className="grid3">
         <div className="f"><label htmlFor="i-gst">GST %</label><input className="inp" id="i-gst" type="number" step="any" min="0" list="gstList" value={f.gst} onChange={set("gst")} /></div>

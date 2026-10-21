@@ -28,6 +28,10 @@ The remaining GST rates are best-effort. Items marked `*` in [`docs/item-catalog
 
 After updating, re-run `supabase/schema.sql` once in the Supabase SQL Editor (it adds the `code` column and updates the save function).
 
+## Weights and volumes
+
+Rates are per 1 kg (KGS items) or per 1 litre (LTR items). On a bill line you can type the quantity in kg or g (litre or ml) with the unit chooser next to it; the amount always scales in proportion (250 g at Rs 124/kg is Rs 31, 2.5 kg is Rs 310). Switching the unit converts the number typed. Bills store the quantity in the item's own unit and print it as grams or millilitres when under 1, with the rate marked per KGS or per LTR.
+
 ## Stock
 
 Stock tracking is **off by default**: bills never change stock and the stock screens, alerts and fields are hidden. Turn it on in Settings > Stock and totals (Track stock) to get stock levels, low-stock alerts, adjustments and history.

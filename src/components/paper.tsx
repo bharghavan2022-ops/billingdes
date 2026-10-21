@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import { N, dmy, inWords, invPaid, plain, round2, totalsOf, trimNum } from "@/lib/billing/calc";
+import { N, dmy, fmtQty, inWords, invPaid, plain, round2, subUnitOf, totalsOf, trimNum } from "@/lib/billing/calc";
 import { FULLROWS, LASTROWS } from "@/lib/billing/constants";
 import { sellerOfInvoice } from "@/lib/billing/data";
 import type { BillingData, Invoice } from "@/lib/billing/types";
@@ -49,7 +49,7 @@ function Page({ inv, settings, c, label, ch, k, n, cols, showDisc }: {
               return (
                 <div className="r" style={g} key={i}>
                   <div className="c">{i + 1}</div><div className="c">{l.name}</div><div className="c">{l.hsn}</div>
-                  <div className="c n">{trimNum(l.qty, 3)} {l.unit}</div><div className="c n">{trimNum(l.rate, 2)}</div>
+                  <div className="c n">{fmtQty(l.qty, l.unit)}</div><div className="c n">{trimNum(l.rate, 2)}{subUnitOf(l.unit) && <small>/{l.unit}</small>}</div>
                   {showDisc && <div className="c n">{N(l.disc) ? trimNum(l.disc, 2) + "%" : ""}</div>}
                   <div className="c n">{plain(r.tax)}<small>({trimNum(l.gst, 2)}%)</small></div><div className="c n">{plain(r.amount)}</div>
                 </div>
@@ -57,7 +57,7 @@ function Page({ inv, settings, c, label, ch, k, n, cols, showDisc }: {
             })}
           </div>
           {last
-            ? <div className="r rs" style={g}><div className="c"></div><div className="c">SUBTOTAL</div><div className="c"></div><div className="c n">{trimNum(c.qty, 2)}</div><div className="c"></div>{showDisc && <div className="c"></div>}<div className="c n">₹{plain(c.tax)}</div><div className="c n">₹{plain(c.total)}</div></div>
+            ? <div className="r rs" style={g}><div className="c"></div><div className="c">SUBTOTAL</div><div className="c"></div><div className="c n">{new Set(inv.lines.map((l) => l.unit)).size === 1 ? trimNum(c.qty, 2) : ""}</div><div className="c"></div>{showDisc && <div className="c"></div>}<div className="c n">₹{plain(c.tax)}</div><div className="c n">₹{plain(c.total)}</div></div>
             : <div className="p-cont">Continued on next page</div>}
         </div>
         {last && (
