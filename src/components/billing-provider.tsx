@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { saveChanges } from "@/app/actions";
-import { migrate } from "@/lib/billing/data";
+import { fillCatalogueBlanks, migrate } from "@/lib/billing/data";
 import { chunkChanges, diffAgainst, snapshotOf, type Snapshot } from "@/lib/billing/rows";
 import type { BillingData } from "@/lib/billing/types";
 
@@ -89,6 +89,13 @@ export function BillingProvider({ initial, email, children }: { initial: Billing
     setToastMsg(msg); setToastOn(true);
     clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToastOn(false), 2600);
+  }, []);
+
+  // Standard items loaded by an earlier version have no HSN, GST or rate: fill the blanks once, without overwriting anything.
+  useEffect(() => {
+    const probe = structuredClone(latest.current);
+    if (fillCatalogueBlanks(probe) > 0) update((d) => { fillCatalogueBlanks(d); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

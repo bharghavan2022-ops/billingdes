@@ -112,6 +112,24 @@ export function addCatalogueItems(db: BillingData): { added: number; linked: num
   return { added, linked, filled };
 }
 
+/**
+ * Fills blanks on the standard items already in the account, never overwriting anything: HSN and GST where both are empty, and the
+ * unit and rate (from your sales invoices) where the rate is 0 and the unit is still the default NOS. Adds no items. Returns how many changed.
+ */
+export function fillCatalogueBlanks(db: BillingData): number {
+  const byCode = new Map(CATALOGUE.map((c) => [c.code, c]));
+  let n = 0;
+  for (const it of db.items) {
+    const c = byCode.get(it.code);
+    if (!c) continue;
+    let did = false;
+    if (!it.hsn && !N(it.gst) && c.hsn) { it.hsn = c.hsn; it.gst = c.gst; did = true; }
+    if (c.rate !== undefined && !N(it.rate) && it.unit === "NOS") { it.rate = c.rate; it.unit = c.unit || it.unit; did = true; }
+    if (did) n++;
+  }
+  return n;
+}
+
 /** The 65 catalogue items backed by your sales invoices (they carry a unit and rate). */
 const INVOICE_BACKED = CATALOGUE.filter((c) => c.rate !== undefined);
 const OLD_075 = (name: string) => name.startsWith("வெண்சுண்டல் (");

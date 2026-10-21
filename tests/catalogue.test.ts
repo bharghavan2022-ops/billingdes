@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CATALOGUE, CATALOGUE_SIZE } from "@/lib/billing/catalogue";
-import { addCatalogueItems, applyInvoiceRates, catalogueNeedsLoading, defaults, itemsDifferingFromInvoices, ensureItemCodes, migrate, nextItemCode, seed } from "@/lib/billing/data";
+import { addCatalogueItems, applyInvoiceRates, fillCatalogueBlanks, catalogueNeedsLoading, defaults, itemsDifferingFromInvoices, ensureItemCodes, migrate, nextItemCode, seed } from "@/lib/billing/data";
 
 describe("item catalogue", () => {
   it("has 101 items with serial codes 001-101 and no duplicate names", () => {
@@ -163,6 +163,47 @@ describe("values from your sales invoices", () => {
     for (const i of db.items) { i.hsn = ""; i.gst = 0; i.rate = 0; i.unit = "NOS"; }
     addCatalogueItems(db);
     expect(db.items.find((i) => i.code === "041")).toMatchObject({ hsn: "0910", gst: 5, rate: 611, unit: "KGS" });
+  });
+});
+
+describe("filling blanks automatically", () => {
+  const namesOnly = () => {
+    const db = defaults();
+    addCatalogueItems(db);
+    for (const i of db.items) { i.hsn = ""; i.gst = 0; i.rate = 0; i.unit = "NOS"; } // as loaded by the first version
+    return db;
+  };
+  it("fills HSN, GST, unit and rate on items loaded without them", () => {
+    const db = namesOnly();
+    expect(fillCatalogueBlanks(db)).toBe(101);
+    expect(db.items.find((i) => i.code === "013")).toMatchObject({ hsn: "0713", gst: 0, unit: "KGS", rate: 124 });
+    expect(db.items.find((i) => i.code === "054")).toMatchObject({ hsn: "1701", gst: 5, unit: "KGS", rate: 45.5 });
+    expect(db.items.find((i) => i.code === "001")).toMatchObject({ hsn: "1006", gst: 0, unit: "NOS", rate: 0 }); // not on your invoices: no rate
+    expect(db.items.every((i) => /^\d{4}$/.test(i.hsn))).toBe(true);
+    expect(fillCatalogueBlanks(db)).toBe(0); // done: nothing left to fill
+  });
+  it("fills the rate on items loaded with HSN and GST but no rate", () => {
+    const db = namesOnly();
+    for (const i of db.items) { const c = CATALOGUE.find((x) => x.code === i.code)!; i.hsn = c.hsn; i.gst = c.gst; }
+    expect(fillCatalogueBlanks(db)).toBe(65);
+    expect(db.items.find((i) => i.code === "069")).toMatchObject({ unit: "LTR", rate: 742 });
+  });
+  it("never overwrites anything you set", () => {
+    const db = namesOnly();
+    const sugar = db.items.find((i) => i.code === "054")!;
+    Object.assign(sugar, { hsn: "9999", gst: 12, rate: 50, unit: "KGS" });
+    const toor = db.items.find((i) => i.code === "013")!;
+    Object.assign(toor, { rate: 130 }); // a rate you typed (unit still NOS)
+    fillCatalogueBlanks(db);
+    expect(sugar).toMatchObject({ hsn: "9999", gst: 12, rate: 50, unit: "KGS" });
+    expect(toor.rate).toBe(130);
+  });
+  it("adds no items and ignores items that are not in the catalogue", () => {
+    const db = defaults();
+    db.items.push({ id: "x", code: "150", name: "My own item", alt: "", hsn: "", unit: "NOS", rate: 0, gst: 0, low: 0, stock: 0, active: true });
+    expect(fillCatalogueBlanks(db)).toBe(0);
+    expect(db.items).toHaveLength(1);
+    expect(db.items[0]).toMatchObject({ hsn: "", rate: 0 });
   });
 });
 
