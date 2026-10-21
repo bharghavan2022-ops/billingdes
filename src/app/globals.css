@@ -134,6 +134,7 @@ dialog::backdrop{background:rgba(36,54,49,.35)}
 .p-meta{padding:10px 12px}
 .p-meta .t{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px}
 .p-meta h3{font-size:15px;letter-spacing:.02em}
+.p-title{text-align:center;font-size:16px;font-weight:700;letter-spacing:.08em;margin:0 0 8px;text-transform:uppercase}
 .p-copy{border:1px solid #888;color:#666;font-size:9px;padding:3px 6px;letter-spacing:.04em;white-space:nowrap}
 .kv{display:flex;justify-content:space-between;padding:2px 0;gap:10px}
 .kv span:first-child{color:#444}

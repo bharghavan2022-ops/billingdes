@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import { N, dmy, fmtQty, inWords, invPaid, plain, round2, subUnitOf, totalsOf, trimNum } from "@/lib/billing/calc";
-import { FULLROWS, LASTROWS } from "@/lib/billing/constants";
+import { DEFAULT_HEADING, FULLROWS, LASTROWS } from "@/lib/billing/constants";
 import { sellerOfInvoice } from "@/lib/billing/data";
 import type { BillingData, Invoice } from "@/lib/billing/types";
 
@@ -28,10 +28,11 @@ function Page({ inv, settings, c, label, ch, k, n, cols, showDisc }: {
   return (
     <div className={`paper${inv.status === "cancelled" ? " cancelled" : ""}`}>
       <div className="pbox">
+        {(inv.heading ?? DEFAULT_HEADING).trim() && <h2 className="p-title">{(inv.heading ?? DEFAULT_HEADING).trim()}</h2>}
         <div className="p-head">
           <div className="p-biz"><b>{b.name}</b>{b.address}<br />{b.mobile && <>Mobile : {b.mobile}<br /></>}{b.gstin && <>GSTIN : {b.gstin}<br /></>}{b.pan && <>PAN Number : {b.pan}</>}</div>
           <div className="p-meta">
-            <div className="t"><h3>TAX INVOICE</h3>{label && <span className="p-copy">{label}</span>}</div>
+            {label && <div className="t"><span className="p-copy">{label}</span></div>}
             <div className="kv"><span>Invoice No.</span><span>{inv.no}</span></div>
             <div className="kv"><span>Invoice Date</span><span>{dmy(inv.date)}</span></div>
             {inv.due && <div className="kv"><span>Due Date</span><span>{dmy(inv.due)}</span></div>}

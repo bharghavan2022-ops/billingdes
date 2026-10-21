@@ -21,6 +21,8 @@ export interface Invoice {
   custId: string; cust: Party;
   shipSame: boolean; ship: { name: string; address: string };
   pos: string; intra: boolean; roundOffOn: boolean;
+  /** Title printed centred at the top of the bill, e.g. TAX INVOICE. */
+  heading: string;
   lines: Line[]; notes: string; grand: number;
   payments: Payment[]; status: "active" | "cancelled";
   createdAt: number; updatedAt?: number; cancelledAt?: number;

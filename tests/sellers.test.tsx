@@ -127,3 +127,18 @@ describe("the printed bill", () => {
     expect(print("")).toContain("GSTIN : 33QBSPS1659N1ZE");
   });
 });
+
+describe("bill heading", () => {
+  it("prints centred at the top and survives a save and load", () => {
+    const db = seed();
+    const inv = db.invoices[0];
+    inv.heading = "BILL OF SUPPLY";
+    const html = renderToStaticMarkup(<Paper inv={inv} settings={db.settings} label="" />);
+    expect(html).toContain('<h2 class="p-title">BILL OF SUPPLY</h2>');
+    expect(html).not.toContain("TAX INVOICE");
+    inv.heading = "";
+    expect(renderToStaticMarkup(<Paper inv={inv} settings={db.settings} label="" />)).not.toContain("p-title");
+    const rows = toRowSets(db).invoices.get(inv.id) as { heading: string | null };
+    expect(rows.heading).toBe("");
+  });
+});

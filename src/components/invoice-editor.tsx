@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { N, GSTIN_RE, addDays, baseQty, calcInvoice, inWords, money, plain, round2, round3, subUnitOf, todayISO, trimNum, qtyByItem } from "@/lib/billing/calc";
-import { PAY_MODES, STATES } from "@/lib/billing/constants";
+import { DEFAULT_HEADING, PAY_MODES, STATES } from "@/lib/billing/constants";
 import { addCatalogueItems, applyStock, bumpNext, invById, isIntra, itemById, nextNoStr, sellerOf, sellerOfInvoice, stockProblems, uid } from "@/lib/billing/data";
 import { CATALOGUE_SIZE } from "@/lib/billing/catalogue";
 import type { Customer, Invoice, Item, Line, Party, SubUnit } from "@/lib/billing/types";
@@ -17,7 +17,7 @@ const DKEY = "billing-desk-draft-v1";
 interface Ed {
   mode: "new" | "edit" | "copy"; id: string | null; no: string; date: string; due: string; sellerId: string;
   custId: string; cust: Party; pos: string; shipSame: boolean; ship: { name: string; address: string };
-  lines: Line[]; notes: string; received: string; recvMode: string; saveCust: boolean;
+  lines: Line[]; heading: string; notes: string; received: string; recvMode: string; saveCust: boolean;
 }
 /** A saved quantity under 1 kg (or 1 litre) is shown in grams (millilitres) so it reads the way it was typed. */
 const asTyped = (l: Line): Line => {
@@ -71,11 +71,11 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
 
   function newEd(): Ed {
     const t = todayISO(), sid = db.settings.sellerId;
-    return { mode: "new", id: null, sellerId: sid, no: nextNoStr(db, sid), date: t, due: addDays(t, db.settings.dueDays), custId: "", cust: { name: "", address: "", mobile: "", gstin: "", pan: "" }, pos: sellerOf(db.settings, sid).biz.state, shipSame: true, ship: { name: "", address: "" }, lines: [blankLine()], notes: db.settings.notes, received: "", recvMode: PAY_MODES[0], saveCust: true };
+    return { mode: "new", id: null, sellerId: sid, no: nextNoStr(db, sid), date: t, due: addDays(t, db.settings.dueDays), custId: "", cust: { name: "", address: "", mobile: "", gstin: "", pan: "" }, pos: sellerOf(db.settings, sid).biz.state, shipSame: true, ship: { name: "", address: "" }, lines: [blankLine()], heading: DEFAULT_HEADING, notes: db.settings.notes, received: "", recvMode: PAY_MODES[0], saveCust: true };
   }
   function fromInvoice(e: Ed, inv: Invoice, m: "edit" | "copy"): Ed {
     const sid = sellerOfInvoice(db.settings, inv).id;
-    const out: Ed = { ...e, sellerId: sid, no: nextNoStr(db, sid), custId: inv.custId || "", cust: { ...inv.cust }, pos: inv.pos, shipSame: inv.shipSame, ship: { ...inv.ship }, notes: inv.notes || "", lines: inv.lines.map((l) => asTyped({ itemId: l.itemId, name: l.name, hsn: l.hsn, unit: l.unit, qty: l.qty, rate: l.rate, disc: l.disc || "", gst: l.gst })), saveCust: false };
+    const out: Ed = { ...e, sellerId: sid, no: nextNoStr(db, sid), custId: inv.custId || "", cust: { ...inv.cust }, pos: inv.pos, shipSame: inv.shipSame, ship: { ...inv.ship }, heading: inv.heading ?? DEFAULT_HEADING, notes: inv.notes || "", lines: inv.lines.map((l) => asTyped({ itemId: l.itemId, name: l.name, hsn: l.hsn, unit: l.unit, qty: l.qty, rate: l.rate, disc: l.disc || "", gst: l.gst })), saveCust: false };
     return m === "edit" ? { ...out, mode: "edit", id: inv.id, no: inv.no, date: inv.date, due: inv.due } : out;
   }
 
@@ -175,7 +175,7 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
       const custId = ed.custId || newCustId;
       if (newCustId) d.customers.push({ id: newCustId, state: ed.pos, ...snap });
       const intra = isIntra(d, ed.pos, ed.sellerId), prior = old ? invById(d, old.id)! : null;
-      const rec = { no, date: ed.date, due: ed.due, sellerId: ed.sellerId, custId, cust: snap, shipSame: ed.shipSame, ship: { name: ed.ship.name.trim(), address: ed.ship.address.trim() }, pos: ed.pos, intra, roundOffOn: prior ? prior.roundOffOn : d.settings.roundOff, lines, notes: ed.notes.trim(), grand: 0 };
+      const rec = { no, date: ed.date, due: ed.due, sellerId: ed.sellerId, custId, cust: snap, shipSame: ed.shipSame, ship: { name: ed.ship.name.trim(), address: ed.ship.address.trim() }, pos: ed.pos, intra, roundOffOn: prior ? prior.roundOffOn : d.settings.roundOff, lines, heading: ed.heading.trim(), notes: ed.notes.trim(), grand: 0 };
       rec.grand = calcInvoice(lines, rec.intra, rec.roundOffOn).grand;
       if (prior) {
         const prev = { lines: prior.lines.map((l) => ({ ...l })) };
@@ -277,6 +277,7 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
       </div>
       <div className="grid2" style={{ alignItems: "start" }}>
         <div className="card"><h2>Notes and payment</h2>
+          <div className="f" style={{ marginBottom: 12 }}><label htmlFor="e-heading">Bill heading (printed at the top, centred)</label><input className="inp" id="e-heading" value={ed.heading} placeholder="TAX INVOICE" onChange={(e) => patch({ heading: e.target.value })} /></div>
           <div className="f" style={{ marginBottom: 12 }}><label htmlFor="e-notes">Notes printed on the bill</label><textarea className="inp" id="e-notes" rows={2} value={ed.notes} onChange={(e) => patch({ notes: e.target.value })} /></div>
           {ed.mode === "edit" ? <div className="small muted">Payments are managed on the invoice page.</div> : (
             <div className="grid2">

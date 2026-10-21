@@ -1,3 +1,4 @@
+import { DEFAULT_HEADING } from "./constants";
 import { N, calcInvoice, qtyByItem, round3, todayISO, trimNum } from "./calc";
 import { CATALOGUE, CATALOGUE_SIZE } from "./catalogue";
 import type { BankDetails, BillingData, BusinessDetails, Invoice, Item, Seller, Settings } from "./types";
@@ -61,7 +62,7 @@ export function migrate(d: Partial<BillingData>): BillingData {
     settings: normalizeSettings(d.settings),
     meta: { ...df.meta, ...d.meta },
     items: d.items || [], customers: d.customers || [],
-    invoices: (d.invoices || []).map((i) => ({ ...i, sellerId: i.sellerId || "" })), ledger: d.ledger || [],
+    invoices: (d.invoices || []).map((i) => ({ ...i, sellerId: i.sellerId || "", heading: i.heading ?? DEFAULT_HEADING })), ledger: d.ledger || [],
   } as BillingData;
   ensureItemCodes(out);
   return out;
@@ -243,7 +244,7 @@ export function seed(sample = true): BillingData {
   const cu = { id: uid(), name: "THE MADURAI DISTRICT PANDIAN CONSUMERS CO OPERATIVE WHOLE SALE STORES LTD", address: "216 A, EXTENSION ZONE -1, P P NAGAR, MADURAI, Madurai, Tamil Nadu, Madurai, Tamil Nadu, 625016", mobile: "9843230297", gstin: "33AAAAT0957C1ZW", pan: "AAAAT0957C", state: "Tamil Nadu" };
   db.customers.push(cu);
   const lines = ([[a, 0.162], [b, 0.105], [c, 6]] as [Item, number][]).map(([it, q]) => ({ itemId: it.id, name: it.name, hsn: it.hsn, unit: it.unit, qty: q, rate: it.rate, disc: 0, gst: it.gst }));
-  const inv: Invoice = { id: uid(), no: "49", date: "2026-09-01", due: "2026-09-08", sellerId: SRI_ID, custId: cu.id, cust: { name: cu.name, address: cu.address, mobile: cu.mobile, gstin: cu.gstin, pan: cu.pan }, shipSame: true, ship: { name: "", address: "" }, pos: "Tamil Nadu", intra: true, roundOffOn: false, lines, notes: "தேவர் பயிற்சி பள்ளி", payments: [], status: "active", createdAt: Date.now() - 1e3, grand: 0 };
+  const inv: Invoice = { id: uid(), no: "49", date: "2026-09-01", due: "2026-09-08", sellerId: SRI_ID, custId: cu.id, cust: { name: cu.name, address: cu.address, mobile: cu.mobile, gstin: cu.gstin, pan: cu.pan }, shipSame: true, ship: { name: "", address: "" }, pos: "Tamil Nadu", intra: true, roundOffOn: false, lines, heading: DEFAULT_HEADING, notes: "தேவர் பயிற்சி பள்ளி", payments: [], status: "active", createdAt: Date.now() - 1e3, grand: 0 };
   inv.grand = calcInvoice(lines, true, false).grand;
   db.invoices.push(inv);
   applyStock(db, inv, null);

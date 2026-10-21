@@ -8,3 +8,6 @@ export const MOVE_LABEL: Record<MoveType, string> = { SALE: "Sold", EDIT: "Bill 
 export const PAY_MODES = ["Cash", "UPI", "Bank transfer", "Cheque"];
 export const FULLROWS = 24;
 export const LASTROWS = 11;
+
+/** Heading printed at the top of a bill unless the user changes it. */
+export const DEFAULT_HEADING = "TAX INVOICE";
