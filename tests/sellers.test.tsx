@@ -165,3 +165,14 @@ describe("Tamil bill", () => {
     expect(s.sellers[0].biz.nameTa).toBeTruthy();
   });
 });
+
+describe("bill heading follows the bill language", () => {
+  it("never leaves a Tamil heading on an English bill", async () => {
+    const { headingFor } = await import("@/lib/billing/lang");
+    expect(headingFor("வரி விலைப்பட்டியல்ஔ", "en")).toBe("TAX INVOICE");
+    expect(headingFor("TAX INVOICE", "ta")).toBe("வரி விலைப்பட்டியல்");
+    expect(headingFor("", "ta")).toBe("வரி விலைப்பட்டியல்");
+    expect(headingFor("BILL OF SUPPLY", "en")).toBe("BILL OF SUPPLY");
+    expect(headingFor("BILL OF SUPPLY", "ta")).toBe("BILL OF SUPPLY");
+  });
+});

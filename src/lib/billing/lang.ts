@@ -26,3 +26,12 @@ export const BILL_FROM = { en: "Bill from", ta: "பில் வழங்கு
 export function bizFor(b: BusinessDetails, lang: Lang | undefined) {
   return lang === "ta" ? { ...b, name: b.nameTa?.trim() || b.name, address: b.addressTa?.trim() || b.address } : b;
 }
+
+const TAMIL_SCRIPT = /[\u0B80-\u0BFF]/;
+/** The heading to show after the bill language changes to `l`: the new language's default, unless the current heading is already a custom one in that language. */
+export function headingFor(current: string, l: Lang): string {
+  const h = current.trim();
+  if (!h) return HEADING[l];
+  if (l === "en") return TAMIL_SCRIPT.test(h) ? HEADING.en : h;
+  return h === HEADING.en ? HEADING.ta : h;
+}

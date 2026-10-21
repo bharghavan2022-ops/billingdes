@@ -9,7 +9,7 @@ import { addCatalogueItems, applyStock, bumpNext, invById, isIntra, itemById, ne
 import { CATALOGUE_SIZE } from "@/lib/billing/catalogue";
 import type { Customer, Invoice, Item, Line, Party, SubUnit } from "@/lib/billing/types";
 import { useBilling } from "./billing-provider";
-import { BILL_FROM, HEADING, bizFor, type Lang } from "@/lib/billing/lang";
+import { BILL_FROM, bizFor, headingFor, type Lang } from "@/lib/billing/lang";
 import { ComboInput, type ComboOption } from "./combo-input";
 import { ItemDialog } from "./item-dialogs";
 
@@ -83,11 +83,8 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
   const lang: Lang = ed.lang === "ta" ? "ta" : "en";
   /** In a Tamil bill, the customer, shipping and notes fields get the floating Tamil keyboard too. */
   const tamilIf = lang === "ta" ? { "data-tamil": "" } : {};
-  /** Switching the bill language also swaps the default heading, but never one the user has typed. */
-  const setLang = (l: Lang) => setEd((e) => {
-    const h = e.heading.trim(), other = l === "ta" ? "en" : "ta";
-    return { ...e, lang: l, heading: !h || h === HEADING[other] ? HEADING[l] : e.heading };
-  });
+  /** Switching the bill language swaps the heading too, so an English bill never keeps a Tamil heading. A custom heading in the target language is kept. */
+  const setLang = (l: Lang) => setEd((e) => ({ ...e, lang: l, heading: headingFor(e.heading, l) }));
   /** Changing the firm moves the suggested invoice number to that firm's series and the default place of supply to its state. */
   const setSeller = (sid: string) => setEd((e) => {
     if (e.sellerId === sid) return e;
