@@ -85,7 +85,7 @@ export function TamilKeyboard() {
       <div className="tkb-body">
         {ROWS.map((r) => (
           <div key={r.label} className="tkb-row">{r.keys.map((k) => (
-            <button key={k} type="button" className={`tkb-k${r.label === "Vowel signs" ? " sign" : ""}`} onClick={() => type(k)}>{r.label === "Vowel signs" ? "க" + k : k}</button>
+            <button key={k} type="button" className={`tkb-k${r.label === "Vowel signs" ? " sign" : ""}`} onClick={() => type(k)}>{r.label === "Vowel signs" ? "◌" + k : k}</button>
           ))}</div>
         ))}
         <div className="tkb-row">
