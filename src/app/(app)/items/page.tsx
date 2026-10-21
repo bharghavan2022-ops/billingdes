@@ -5,7 +5,7 @@ import { useBilling } from "@/components/billing-provider";
 import { AdjustDialog, HistoryDialog, ItemDialog } from "@/components/item-dialogs";
 import { dmy, money, todayISO, trimNum } from "@/lib/billing/calc";
 import { MOVE_LABEL } from "@/lib/billing/constants";
-import { addCatalogueItems, applyInvoiceRates, catalogueNeedsLoading, isLow, itemById, itemsDifferingFromInvoices } from "@/lib/billing/data";
+import { addCatalogueItems, fillCatalogueBlanks, applyInvoiceRates, catalogueNeedsLoading, isLow, itemById, itemsDifferingFromInvoices } from "@/lib/billing/data";
 import { ConfirmDialog } from "@/components/dialog";
 import { CATALOGUE_SIZE } from "@/lib/billing/catalogue";
 import { download, stockCsv } from "@/lib/billing/export";
@@ -24,6 +24,7 @@ export default function ItemsPage() {
   const track = db.settings.trackStock;
   const [confirmRates, setConfirmRates] = useState(false);
   const differing = itemsDifferingFromInvoices(db).length;
+  const blanks = (() => { const p = structuredClone(db); return fillCatalogueBlanks(p); })();
 
   const showMoves = track && tab === "moves";
   let list = db.items.filter((i) => !ql || (i.code + " " + i.name + " " + i.alt + " " + i.hsn).toLowerCase().includes(ql));
@@ -34,6 +35,12 @@ export default function ItemsPage() {
   return (
     <>
       <div className="ph"><h1>{track ? "Items and stock" : "Items"}</h1><button className="btn primary" onClick={() => setDlg({ kind: "edit", id: null })}>＋ Add item</button></div>
+      {blanks > 0 && (
+        <div className="note">
+          <span><b>{blanks} items or bill lines still show 0 for rate, HSN or GST.</b> Fill them from the standard list and your invoices (nothing you typed is overwritten).</span>
+          <button className="btn sm primary" onClick={() => { update((d) => { fillCatalogueBlanks(d); }); toast("Zero values filled"); }}>Fill zero values</button>
+        </div>
+      )}
       {catalogueNeedsLoading(db) && (
         <div className="note">
           <span><b>Standard item list ({CATALOGUE_SIZE} items, codes 001–{CATALOGUE_SIZE}, with HSN and GST).</b> {CATALOGUE_LOADED(db) ? "Fill in the HSN and GST of the standard items." : "Load them once; you only set the rate yourself."} Items you add later continue from {String(CATALOGUE_SIZE + 1)}. Check the GST rates with your tax consultant.</span>

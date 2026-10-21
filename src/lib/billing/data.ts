@@ -118,14 +118,27 @@ export function addCatalogueItems(db: BillingData): { added: number; linked: num
  */
 export function fillCatalogueBlanks(db: BillingData): number {
   const byCode = new Map(CATALOGUE.map((c) => [c.code, c]));
+  const byName = new Map<string, (typeof CATALOGUE)[number]>();
+  for (const c of CATALOGUE) { byName.set(c.name.trim(), c); byName.set(c.english.trim().toLowerCase(), c); }
   let n = 0;
   for (const it of db.items) {
-    const c = byCode.get(it.code);
+    const c = byCode.get(it.code) || byName.get(it.name.trim()) || byName.get(it.name.trim().toLowerCase());
     if (!c) continue;
     let did = false;
     if (!it.hsn && !N(it.gst) && c.hsn) { it.hsn = c.hsn; it.gst = c.gst; did = true; }
-    if (c.rate !== undefined && !N(it.rate) && it.unit === "NOS") { it.rate = c.rate; it.unit = c.unit || it.unit; did = true; }
+    if (c.rate !== undefined && !N(it.rate)) { it.rate = c.rate; if (!it.unit || it.unit === "NOS") it.unit = c.unit || it.unit; did = true; }
     if (did) n++;
+  }
+  // Bill lines saved with no rate (from items that had none) get the item's rate now.
+  for (const inv of db.invoices) {
+    for (const l of inv.lines) {
+      const it = db.items.find((x) => x.id === l.itemId);
+      if (!it) continue;
+      let did = false;
+      if (!N(l.rate) && N(it.rate)) { l.rate = it.rate; did = true; }
+      if (!l.hsn && !N(l.gst) && it.hsn) { l.hsn = it.hsn; l.gst = it.gst; did = true; }
+      if (did) n++;
+    }
   }
   return n;
 }
