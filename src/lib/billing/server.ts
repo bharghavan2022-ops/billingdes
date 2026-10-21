@@ -70,7 +70,7 @@ export async function loadOrSeed(): Promise<LoadResult> {
     const legacy = await supabase.from("billing_data").select("data").eq("user_id", auth.user.id).maybeSingle();
     const legacyMissing = legacy.error && (legacy.error.code === "42P01" || legacy.error.code === "PGRST205");
     if (legacy.error && !legacyMissing) return dbProblem(legacy.error.message, legacy.error.code);
-    const data = legacy.data ? migrate(legacy.data.data as BillingData) : seed();
+    const data = legacy.data ? migrate(legacy.data.data as BillingData) : seed(false);
 
     const { changes } = diffAgainst(snapshotOf(defaults()).snap, data);
     changes.settings = settingsDocOf(data);

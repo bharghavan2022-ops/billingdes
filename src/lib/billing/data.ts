@@ -31,7 +31,7 @@ export function defaults(): BillingData {
       signLabel: "Authorised Signature for", allowNegative: false, roundOff: false, trackStock: false,
     },
     items: [], customers: [], invoices: [], ledger: [],
-    meta: { lastBackup: null, sampleNote: false },
+    meta: { lastBackup: null, sampleNote: false, numbersReset: false },
   };
 }
 
@@ -224,12 +224,13 @@ export function applyStock(db: BillingData, inv: Invoice, old?: { lines: Invoice
 }
 
 /** Sample data taken from the original bill no. 49, so a new account is not empty. */
-export function seed(): BillingData {
+export function seed(sample = true): BillingData {
   const db = defaults(), s = db.settings;
   const sri = s.sellers[0];
   Object.assign(sri.biz, { name: "Sri Angalaeshwari Traders", address: "17/A Sudu Thanni Wayakal Road, Thevar Pettai, Ponnagram, Madurai, Tamil Nadu", mobile: "9940710309", gstin: "33QBSPS1659N1ZE", pan: "QBSPS1659N", state: "Tamil Nadu" });
   Object.assign(sri.bank, { holder: "SRI ANGALAESWARI TRADERS", ifsc: "SBIN0000869", acc: "44511788356", bank: "State Bank of India, MADURAI" });
   s.terms = "1. Goods once sold will not be taken back or exchanged\n2. All disputes are subject to Madurai jurisdiction only";
+  if (!sample) { db.meta.numbersReset = true; return db; }
   const mk = (name: string, alt: string, hsn: string, unit: string, rate: number, gst: number, open: number, low: number) => {
     const it: Item = { id: uid(), code: nextItemCode(db), name, alt, hsn, unit, rate, gst, low, stock: 0, active: true };
     db.items.push(it);
@@ -251,3 +252,11 @@ export function seed(): BillingData {
 }
 
 export { N };
+
+/** One-time reset: both firms start their invoice numbers again from 1. Returns true when it changed anything. */
+export function resetNumbering(db: BillingData): boolean {
+  if (db.meta.numbersReset) return false;
+  db.meta.numbersReset = true;
+  for (const sl of db.settings.sellers) sl.nextNo = 1;
+  return true;
+}

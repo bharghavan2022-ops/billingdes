@@ -46,5 +46,5 @@ export interface Settings {
 export interface BillingData {
   v: number; settings: Settings;
   items: Item[]; customers: Customer[]; invoices: Invoice[]; ledger: Movement[];
-  meta: { lastBackup: number | null; sampleNote: boolean; savedAt?: number };
+  meta: { lastBackup: number | null; sampleNote: boolean; numbersReset?: boolean; savedAt?: number };
 }

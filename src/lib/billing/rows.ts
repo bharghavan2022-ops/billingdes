@@ -12,7 +12,7 @@ export type RowSets = Record<TableName, Map<string, Row>>;
 export interface SettingsDoc {
   v: number;
   settings: Settings;
-  meta: { lastBackup: number | null; sampleNote: boolean };
+  meta: { lastBackup: number | null; sampleNote: boolean; numbersReset?: boolean };
 }
 
 export interface Changes {
@@ -26,7 +26,7 @@ export const emptyRowSets = (): RowSets => ({
 });
 
 export const settingsDocOf = (db: BillingData): SettingsDoc => ({
-  v: db.v, settings: db.settings, meta: { lastBackup: db.meta.lastBackup, sampleNote: db.meta.sampleNote },
+  v: db.v, settings: db.settings, meta: { lastBackup: db.meta.lastBackup, sampleNote: db.meta.sampleNote, numbersReset: !!db.meta.numbersReset },
 });
 
 const s = (v: unknown) => (v == null ? "" : String(v));

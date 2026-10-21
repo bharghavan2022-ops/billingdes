@@ -219,3 +219,19 @@ describe("fillCatalogueBlanks by name and on bill lines", () => {
     expect(db.invoices[0].lines[0]).toMatchObject({ rate: 65.96, hsn: "1103", gst: 5 });
   });
 });
+
+describe("numbering reset", () => {
+  it("resets both firms to 1 once, and a fresh account starts empty", async () => {
+    const { resetNumbering, seed, nextNoStr } = await import("@/lib/billing/data");
+    const db = seed();
+    expect(db.settings.sellers[0].nextNo).toBe(50);
+    expect(resetNumbering(db)).toBe(true);
+    expect(db.settings.sellers.map((s) => s.nextNo)).toEqual([1, 1]);
+    db.settings.sellers[0].nextNo = 7;
+    expect(resetNumbering(db)).toBe(false);
+    expect(db.settings.sellers[0].nextNo).toBe(7);
+    const fresh = seed(false);
+    expect(fresh.invoices.length).toBe(0);
+    expect(nextNoStr(fresh, "sri")).toBe("1");
+  });
+});
