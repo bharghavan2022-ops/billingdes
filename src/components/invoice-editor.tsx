@@ -223,6 +223,7 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
         <div className="f"><label htmlFor="e-date">Invoice date</label><input className="inp" type="date" id="e-date" value={ed.date} onChange={(e) => patch({ date: e.target.value })} /></div>
         <div className="f"><label htmlFor="e-due">Due date</label><input className="inp" type="date" id="e-due" value={ed.due} onChange={(e) => patch({ due: e.target.value })} /></div>
       </div></div>
+      <div className="card"><h2>Bill heading</h2><div className="f"><label htmlFor="e-heading">Printed at the top of the bill, centred</label><input className="inp" id="e-heading" value={ed.heading} placeholder="TAX INVOICE" onChange={(e) => patch({ heading: e.target.value })} /></div></div>
       <div className="grid2" style={{ alignItems: "start" }}>
         <div className="card"><h2>Bill to</h2><div className="grid2">
           <div className="f span2"><label htmlFor="e-cname">Customer name (type to search saved customers)</label>
@@ -277,7 +278,6 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
       </div>
       <div className="grid2" style={{ alignItems: "start" }}>
         <div className="card"><h2>Notes and payment</h2>
-          <div className="f" style={{ marginBottom: 12 }}><label htmlFor="e-heading">Bill heading (printed at the top, centred)</label><input className="inp" id="e-heading" value={ed.heading} placeholder="TAX INVOICE" onChange={(e) => patch({ heading: e.target.value })} /></div>
           <div className="f" style={{ marginBottom: 12 }}><label htmlFor="e-notes">Notes printed on the bill</label><textarea className="inp" id="e-notes" rows={2} value={ed.notes} onChange={(e) => patch({ notes: e.target.value })} /></div>
           {ed.mode === "edit" ? <div className="small muted">Payments are managed on the invoice page.</div> : (
             <div className="grid2">
