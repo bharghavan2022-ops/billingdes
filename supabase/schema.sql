@@ -58,6 +58,7 @@ create table if not exists public.invoices (
   round_off_on boolean,
   notes text,
   heading text,
+  lang text,
   grand numeric not null,
   status text not null,
   created_at bigint not null,
@@ -118,6 +119,7 @@ create unique index if not exists items_user_code_idx on public.items (user_id, 
 -- Which firm issued each bill (two firms can bill from one account). Existing bills stay empty and belong to the first firm.
 alter table public.invoices add column if not exists seller_id text;
 alter table public.invoices add column if not exists heading text;
+alter table public.invoices add column if not exists lang text;
 
 create index if not exists invoices_user_date_idx on public.invoices (user_id, date desc);
 create index if not exists invoice_lines_invoice_idx on public.invoice_lines (user_id, invoice_id);
@@ -201,9 +203,9 @@ begin
     on conflict (user_id, id) do update set name = excluded.name, address = excluded.address, mobile = excluded.mobile, gstin = excluded.gstin, pan = excluded.pan, state = excluded.state;
   end if;
   if p->'upserts'->'invoices' is not null then
-    insert into public.invoices (user_id, id, no, date, due, seller_id, customer_id, cust_name, cust_address, cust_mobile, cust_gstin, cust_pan, ship_same, ship_name, ship_address, pos, intra, round_off_on, notes, heading, grand, status, created_at, updated_at, cancelled_at)
-    select auth.uid(), r.id, r.no, r.date, r.due, r.seller_id, r.customer_id, r.cust_name, r.cust_address, r.cust_mobile, r.cust_gstin, r.cust_pan, r.ship_same, r.ship_name, r.ship_address, r.pos, r.intra, r.round_off_on, r.notes, r.heading, r.grand, r.status, r.created_at, r.updated_at, r.cancelled_at from jsonb_populate_recordset(null::public.invoices, p->'upserts'->'invoices') r
-    on conflict (user_id, id) do update set no = excluded.no, date = excluded.date, due = excluded.due, seller_id = excluded.seller_id, customer_id = excluded.customer_id, cust_name = excluded.cust_name, cust_address = excluded.cust_address, cust_mobile = excluded.cust_mobile, cust_gstin = excluded.cust_gstin, cust_pan = excluded.cust_pan, ship_same = excluded.ship_same, ship_name = excluded.ship_name, ship_address = excluded.ship_address, pos = excluded.pos, intra = excluded.intra, round_off_on = excluded.round_off_on, notes = excluded.notes, heading = excluded.heading, grand = excluded.grand, status = excluded.status, created_at = excluded.created_at, updated_at = excluded.updated_at, cancelled_at = excluded.cancelled_at;
+    insert into public.invoices (user_id, id, no, date, due, seller_id, customer_id, cust_name, cust_address, cust_mobile, cust_gstin, cust_pan, ship_same, ship_name, ship_address, pos, intra, round_off_on, notes, heading, lang, grand, status, created_at, updated_at, cancelled_at)
+    select auth.uid(), r.id, r.no, r.date, r.due, r.seller_id, r.customer_id, r.cust_name, r.cust_address, r.cust_mobile, r.cust_gstin, r.cust_pan, r.ship_same, r.ship_name, r.ship_address, r.pos, r.intra, r.round_off_on, r.notes, r.heading, r.lang, r.grand, r.status, r.created_at, r.updated_at, r.cancelled_at from jsonb_populate_recordset(null::public.invoices, p->'upserts'->'invoices') r
+    on conflict (user_id, id) do update set no = excluded.no, date = excluded.date, due = excluded.due, seller_id = excluded.seller_id, customer_id = excluded.customer_id, cust_name = excluded.cust_name, cust_address = excluded.cust_address, cust_mobile = excluded.cust_mobile, cust_gstin = excluded.cust_gstin, cust_pan = excluded.cust_pan, ship_same = excluded.ship_same, ship_name = excluded.ship_name, ship_address = excluded.ship_address, pos = excluded.pos, intra = excluded.intra, round_off_on = excluded.round_off_on, notes = excluded.notes, heading = excluded.heading, lang = excluded.lang, grand = excluded.grand, status = excluded.status, created_at = excluded.created_at, updated_at = excluded.updated_at, cancelled_at = excluded.cancelled_at;
   end if;
   if p->'upserts'->'invoice_lines' is not null then
     insert into public.invoice_lines (user_id, id, invoice_id, position, item_id, name, hsn, unit, qty, rate, disc, gst)

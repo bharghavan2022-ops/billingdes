@@ -232,3 +232,6 @@ a.btn.primary{color:var(--accent-ink)}
 .tkb-k:hover{background:#e6f1ec}.tkb-k:active{background:#cfe5da}
 .tkb-k.wide{flex:1;font-size:14px}
 @media print{.tkb{display:none}}
+
+.langbar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.langbar .lbl{margin:0}

@@ -9,6 +9,7 @@ import { addCatalogueItems, applyStock, bumpNext, invById, isIntra, itemById, ne
 import { CATALOGUE_SIZE } from "@/lib/billing/catalogue";
 import type { Customer, Invoice, Item, Line, Party, SubUnit } from "@/lib/billing/types";
 import { useBilling } from "./billing-provider";
+import { BILL_FROM, HEADING, bizFor, type Lang } from "@/lib/billing/lang";
 import { ComboInput, type ComboOption } from "./combo-input";
 import { ItemDialog } from "./item-dialogs";
 
@@ -17,7 +18,7 @@ const DKEY = "billing-desk-draft-v1";
 interface Ed {
   mode: "new" | "edit" | "copy"; id: string | null; no: string; date: string; due: string; sellerId: string;
   custId: string; cust: Party; pos: string; shipSame: boolean; ship: { name: string; address: string };
-  lines: Line[]; heading: string; notes: string; received: string; recvMode: string; saveCust: boolean;
+  lines: Line[]; heading: string; lang: Lang; notes: string; received: string; recvMode: string; saveCust: boolean;
 }
 /** A saved quantity under 1 kg (or 1 litre) is shown in grams (millilitres) so it reads the way it was typed. */
 const asTyped = (l: Line): Line => {
@@ -71,14 +72,20 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
 
   function newEd(): Ed {
     const t = todayISO(), sid = db.settings.sellerId;
-    return { mode: "new", id: null, sellerId: sid, no: nextNoStr(db, sid), date: t, due: addDays(t, db.settings.dueDays), custId: "", cust: { name: "", address: "", mobile: "", gstin: "", pan: "" }, pos: sellerOf(db.settings, sid).biz.state, shipSame: true, ship: { name: "", address: "" }, lines: [blankLine()], heading: DEFAULT_HEADING, notes: db.settings.notes, received: "", recvMode: PAY_MODES[0], saveCust: true };
+    return { mode: "new", id: null, sellerId: sid, no: nextNoStr(db, sid), date: t, due: addDays(t, db.settings.dueDays), custId: "", cust: { name: "", address: "", mobile: "", gstin: "", pan: "" }, pos: sellerOf(db.settings, sid).biz.state, shipSame: true, ship: { name: "", address: "" }, lines: [blankLine()], heading: DEFAULT_HEADING, lang: "en", notes: db.settings.notes, received: "", recvMode: PAY_MODES[0], saveCust: true };
   }
   function fromInvoice(e: Ed, inv: Invoice, m: "edit" | "copy"): Ed {
     const sid = sellerOfInvoice(db.settings, inv).id;
-    const out: Ed = { ...e, sellerId: sid, no: nextNoStr(db, sid), custId: inv.custId || "", cust: { ...inv.cust }, pos: inv.pos, shipSame: inv.shipSame, ship: { ...inv.ship }, heading: inv.heading ?? DEFAULT_HEADING, notes: inv.notes || "", lines: inv.lines.map((l) => asTyped({ itemId: l.itemId, name: l.name, hsn: l.hsn, unit: l.unit, qty: l.qty, rate: l.rate, disc: l.disc || "", gst: l.gst })), saveCust: false };
+    const out: Ed = { ...e, sellerId: sid, no: nextNoStr(db, sid), custId: inv.custId || "", cust: { ...inv.cust }, pos: inv.pos, shipSame: inv.shipSame, ship: { ...inv.ship }, heading: inv.heading ?? DEFAULT_HEADING, lang: inv.lang === "ta" ? "ta" : "en", notes: inv.notes || "", lines: inv.lines.map((l) => asTyped({ itemId: l.itemId, name: l.name, hsn: l.hsn, unit: l.unit, qty: l.qty, rate: l.rate, disc: l.disc || "", gst: l.gst })), saveCust: false };
     return m === "edit" ? { ...out, mode: "edit", id: inv.id, no: inv.no, date: inv.date, due: inv.due } : out;
   }
 
+  const lang: Lang = ed.lang === "ta" ? "ta" : "en";
+  /** Switching the bill language also swaps the default heading, but never one the user has typed. */
+  const setLang = (l: Lang) => setEd((e) => {
+    const h = e.heading.trim(), other = l === "ta" ? "en" : "ta";
+    return { ...e, lang: l, heading: !h || h === HEADING[other] ? HEADING[l] : e.heading };
+  });
   /** Changing the firm moves the suggested invoice number to that firm's series and the default place of supply to its state. */
   const setSeller = (sid: string) => setEd((e) => {
     if (e.sellerId === sid) return e;
@@ -175,7 +182,7 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
       const custId = ed.custId || newCustId;
       if (newCustId) d.customers.push({ id: newCustId, state: ed.pos, ...snap });
       const intra = isIntra(d, ed.pos, ed.sellerId), prior = old ? invById(d, old.id)! : null;
-      const rec = { no, date: ed.date, due: ed.due, sellerId: ed.sellerId, custId, cust: snap, shipSame: ed.shipSame, ship: { name: ed.ship.name.trim(), address: ed.ship.address.trim() }, pos: ed.pos, intra, roundOffOn: prior ? prior.roundOffOn : d.settings.roundOff, lines, heading: ed.heading.trim(), notes: ed.notes.trim(), grand: 0 };
+      const rec = { no, date: ed.date, due: ed.due, sellerId: ed.sellerId, custId, cust: snap, shipSame: ed.shipSame, ship: { name: ed.ship.name.trim(), address: ed.ship.address.trim() }, pos: ed.pos, intra, roundOffOn: prior ? prior.roundOffOn : d.settings.roundOff, lines, heading: ed.heading.trim(), lang, notes: ed.notes.trim(), grand: 0 };
       rec.grand = calcInvoice(lines, rec.intra, rec.roundOffOn).grand;
       if (prior) {
         const prev = { lines: prior.lines.map((l) => ({ ...l })) };
@@ -204,19 +211,26 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
 
   return (
     <>
+      <div className="langbar" role="group" aria-label="Bill language">
+        <span className="lbl">Bill language</span>
+        <div className="segmented">
+          <button type="button" className={lang === "en" ? "on" : ""} aria-pressed={lang === "en"} onClick={() => setLang("en")}>English</button>
+          <button type="button" className={lang === "ta" ? "on" : ""} aria-pressed={lang === "ta"} onClick={() => setLang("ta")}>தமிழ்</button>
+        </div>
+      </div>
       <div className="ph">
         <div>{ed.mode === "edit" && <Link className="back" href={"/invoices/" + ed.id}>← Back to invoice</Link>}<h1>{ed.mode === "edit" ? "Edit invoice " + ed.no : "New bill"}</h1></div>
         {fromDraft && <div className="row small muted">Restored your unsaved bill <button className="btn sm" onClick={startNew}>Start a new one</button></div>}
       </div>
       {errs.length > 0 && <div className="err" ref={errRef}><b>Fix these before saving</b><ul>{errs.map((x) => <li key={x}>{x}</li>)}</ul></div>}
       <div className="card">
-        <div className="lbl">Bill from</div>
+        <div className="lbl">{BILL_FROM[lang]}</div>
         <div className="segmented" role="group" aria-label="Bill from">
           {db.settings.sellers.map((s) => (
-            <button key={s.id} type="button" className={s.id === ed.sellerId ? "on" : ""} aria-pressed={s.id === ed.sellerId} onClick={() => setSeller(s.id)}>{s.biz.name || "Business"}</button>
+            <button key={s.id} type="button" className={s.id === ed.sellerId ? "on" : ""} aria-pressed={s.id === ed.sellerId} onClick={() => setSeller(s.id)}>{bizFor(s.biz, lang).name || "Business"}</button>
           ))}
         </div>
-        <div className="small muted" style={{ marginTop: 8 }}>{[seller.biz.address, seller.biz.gstin && "GSTIN " + seller.biz.gstin, seller.biz.pan && "PAN " + seller.biz.pan].filter(Boolean).join(" · ")}</div>
+        <div className="small muted" style={{ marginTop: 8 }}>{[bizFor(seller.biz, lang).address, seller.biz.gstin && "GSTIN " + seller.biz.gstin, seller.biz.pan && "PAN " + seller.biz.pan].filter(Boolean).join(" · ")}</div>
       </div>
       <div className="card"><div className="grid3">
         <div className="f"><label htmlFor="e-no">Invoice no.</label><input className="inp" id="e-no" value={ed.no} onChange={(e) => patch({ no: e.target.value })} /></div>

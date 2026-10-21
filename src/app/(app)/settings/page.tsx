@@ -68,6 +68,8 @@ export default function SettingsPage() {
           <div className="f"><label htmlFor="s-biz.state">State (decides CGST + SGST or IGST)</label>
             <select className="inp" id="s-biz.state" value={seller.biz.state} onChange={(e) => setIn("biz", "state", e.target.value)}>{STATES.map((x) => <option key={x}>{x}</option>)}</select></div>
           {text("biz", "gstin", "GSTIN")}{text("biz", "pan", "PAN")}
+          <div className="f span2"><label htmlFor="s-biz.nameTa">Business name in Tamil (printed when the bill is in Tamil)</label><input className="inp" id="s-biz.nameTa" data-tamil value={seller.biz.nameTa ?? ""} onChange={(e) => setIn("biz", "nameTa", e.target.value)} /></div>
+          <div className="f span2"><label htmlFor="s-biz.addressTa">Address in Tamil</label><textarea className="inp" id="s-biz.addressTa" data-tamil rows={2} value={seller.biz.addressTa ?? ""} onChange={(e) => setIn("biz", "addressTa", e.target.value)} /></div>
         </div></div>
       <div className="card"><h2>Bank details printed on the bill: {seller.biz.name || "Business"}</h2>
         <div className="grid2">{text("bank", "holder", "Account holder name")}{text("bank", "bank", "Bank and branch")}{text("bank", "ifsc", "IFSC code")}{text("bank", "acc", "Account number")}{text("bank", "customerId", "Customer ID (optional)")}</div></div>

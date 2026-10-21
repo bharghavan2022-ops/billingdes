@@ -23,6 +23,8 @@ export interface Invoice {
   pos: string; intra: boolean; roundOffOn: boolean;
   /** Title printed centred at the top of the bill, e.g. TAX INVOICE. */
   heading: string;
+  /** Language of the printed bill. Empty on older bills, which are English. */
+  lang?: "en" | "ta";
   lines: Line[]; notes: string; grand: number;
   payments: Payment[]; status: "active" | "cancelled";
   createdAt: number; updatedAt?: number; cancelledAt?: number;
@@ -32,7 +34,9 @@ export interface Movement {
   id: string; ts: number; date: string; itemId: string; name: string;
   qty: number; type: MoveType; ref: string; note: string; bal: number;
 }
-export interface BusinessDetails { name: string; address: string; mobile: string; gstin: string; pan: string; state: string }
+export interface BusinessDetails { name: string; address: string; mobile: string; gstin: string; pan: string; state: string;
+  /** Name and address printed when the bill is in Tamil. */
+  nameTa?: string; addressTa?: string }
 export interface BankDetails { holder: string; ifsc: string; acc: string; bank: string; customerId: string }
 /** One firm that issues bills (the "bill from" party): its letterhead, tax ids, bank details and own invoice numbering. */
 export interface Seller { id: string; biz: BusinessDetails; bank: BankDetails; prefix: string; nextNo: number }

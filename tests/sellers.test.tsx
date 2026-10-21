@@ -142,3 +142,26 @@ describe("bill heading", () => {
     expect(rows.heading).toBe("");
   });
 });
+
+describe("Tamil bill", () => {
+  it("prints the labels, heading and firm in Tamil, and English is unchanged", () => {
+    const db = seed();
+    const inv = db.invoices[0];
+    const en = renderToStaticMarkup(<Paper inv={inv} settings={db.settings} label="" />);
+    expect(en).toContain("BILL TO");
+    expect(en).toContain("Sri Angalaeshwari Traders");
+    inv.lang = "ta"; inv.heading = "வரி விலைப்பட்டியல்";
+    const ta = renderToStaticMarkup(<Paper inv={inv} settings={db.settings} label="" />);
+    expect(ta).toContain("வரி விலைப்பட்டியல்");
+    expect(ta).toContain("வாங்குபவர்");
+    expect(ta).toContain("ஸ்ரீ அங்காளேஸ்வரி டிரேடர்ஸ்");
+    expect(ta).toContain("பொருட்கள்");
+    expect(ta).not.toContain("BILL TO");
+    expect((toRowSets(db).invoices.get(inv.id) as { lang: string }).lang).toBe("ta");
+  });
+  it("gives older firms Tamil names and falls back to English when none is set", () => {
+    const s = normalizeSettings({ biz: { name: "My Shop", address: "Old road" } as never });
+    expect(s.sellers[1].biz.nameTa).toBe("வேலன் அண்ட் கோ");
+    expect(s.sellers[0].biz.nameTa).toBeTruthy();
+  });
+});

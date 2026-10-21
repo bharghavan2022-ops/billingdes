@@ -11,8 +11,14 @@ export const VELAN_ID = "velan";
 const blankBiz = (): BusinessDetails => ({ name: "", address: "", mobile: "", gstin: "", pan: "", state: "Tamil Nadu" });
 const blankBank = (): BankDetails => ({ holder: "", ifsc: "", acc: "", bank: "", customerId: "" });
 
+/** Starting Tamil names and addresses for the two firms; editable in Settings. */
+const TAMIL_DEFAULTS: Record<string, { nameTa: string; addressTa: string }> = {
+  [SRI_ID]: { nameTa: "ஸ்ரீ அங்காளேஸ்வரி டிரேடர்ஸ்", addressTa: "17/A சுடுதண்ணி வாய்க்கால் சாலை, தேவர்பேட்டை, பொன்னகரம், மதுரை, தமிழ்நாடு" },
+  [VELAN_ID]: { nameTa: "வேலன் அண்ட் கோ", addressTa: "பிளாட் எண் 17A, ஹாட் வாட்டர் சேனல் சாலை, பொன்னகரம், மதுரை - 625016." },
+};
+
 export const fillSeller = (s: Partial<Seller> & { id: string }): Seller => ({
-  id: s.id, biz: { ...blankBiz(), ...s.biz }, bank: { ...blankBank(), ...s.bank }, prefix: s.prefix ?? "", nextNo: s.nextNo && s.nextNo > 0 ? s.nextNo : 1,
+  id: s.id, biz: { ...blankBiz(), ...TAMIL_DEFAULTS[s.id], ...s.biz }, bank: { ...blankBank(), ...s.bank }, prefix: s.prefix ?? "", nextNo: s.nextNo && s.nextNo > 0 ? s.nextNo : 1,
 });
 
 export const defaultSri = (): Seller => fillSeller({ id: SRI_ID, biz: { ...blankBiz(), name: "Sri Angalaeshwari Traders" } });
@@ -244,7 +250,7 @@ export function seed(sample = true): BillingData {
   const cu = { id: uid(), name: "THE MADURAI DISTRICT PANDIAN CONSUMERS CO OPERATIVE WHOLE SALE STORES LTD", address: "216 A, EXTENSION ZONE -1, P P NAGAR, MADURAI, Madurai, Tamil Nadu, Madurai, Tamil Nadu, 625016", mobile: "9843230297", gstin: "33AAAAT0957C1ZW", pan: "AAAAT0957C", state: "Tamil Nadu" };
   db.customers.push(cu);
   const lines = ([[a, 0.162], [b, 0.105], [c, 6]] as [Item, number][]).map(([it, q]) => ({ itemId: it.id, name: it.name, hsn: it.hsn, unit: it.unit, qty: q, rate: it.rate, disc: 0, gst: it.gst }));
-  const inv: Invoice = { id: uid(), no: "49", date: "2026-09-01", due: "2026-09-08", sellerId: SRI_ID, custId: cu.id, cust: { name: cu.name, address: cu.address, mobile: cu.mobile, gstin: cu.gstin, pan: cu.pan }, shipSame: true, ship: { name: "", address: "" }, pos: "Tamil Nadu", intra: true, roundOffOn: false, lines, heading: DEFAULT_HEADING, notes: "தேவர் பயிற்சி பள்ளி", payments: [], status: "active", createdAt: Date.now() - 1e3, grand: 0 };
+  const inv: Invoice = { id: uid(), no: "49", date: "2026-09-01", due: "2026-09-08", sellerId: SRI_ID, custId: cu.id, cust: { name: cu.name, address: cu.address, mobile: cu.mobile, gstin: cu.gstin, pan: cu.pan }, shipSame: true, ship: { name: "", address: "" }, pos: "Tamil Nadu", intra: true, roundOffOn: false, lines, heading: DEFAULT_HEADING, lang: "en", notes: "தேவர் பயிற்சி பள்ளி", payments: [], status: "active", createdAt: Date.now() - 1e3, grand: 0 };
   inv.grand = calcInvoice(lines, true, false).grand;
   db.invoices.push(inv);
   applyStock(db, inv, null);

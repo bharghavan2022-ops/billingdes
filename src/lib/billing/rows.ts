@@ -41,7 +41,7 @@ export function toRowSets(db: BillingData): RowSets {
       id: v.id, no: v.no, date: v.date || null, due: v.due || null, seller_id: v.sellerId || null, customer_id: v.custId || null,
       cust_name: v.cust.name, cust_address: v.cust.address, cust_mobile: v.cust.mobile, cust_gstin: v.cust.gstin, cust_pan: v.cust.pan,
       ship_same: !!v.shipSame, ship_name: v.ship.name, ship_address: v.ship.address, pos: v.pos, intra: !!v.intra, round_off_on: !!v.roundOffOn,
-      heading: v.heading ?? null, notes: v.notes || "", grand: N(v.grand), status: v.status, created_at: v.createdAt, updated_at: v.updatedAt ?? null, cancelled_at: v.cancelledAt ?? null,
+      heading: v.heading ?? null, lang: v.lang || "en", notes: v.notes || "", grand: N(v.grand), status: v.status, created_at: v.createdAt, updated_at: v.updatedAt ?? null, cancelled_at: v.cancelledAt ?? null,
     });
     v.lines.forEach((l, idx) => {
       const id = `${v.id}:${idx}`;
@@ -76,7 +76,7 @@ export function fromRows(r: LoadedRows): BillingData {
       id, no: s(x.no), date: s(x.date), due: s(x.due), sellerId: s(x.seller_id), custId: s(x.customer_id),
       cust: { name: s(x.cust_name), address: s(x.cust_address), mobile: s(x.cust_mobile), gstin: s(x.cust_gstin), pan: s(x.cust_pan) },
       shipSame: !!x.ship_same, ship: { name: s(x.ship_name), address: s(x.ship_address) }, pos: s(x.pos), intra: !!x.intra, roundOffOn: !!x.round_off_on,
-      lines, heading: x.heading == null ? DEFAULT_HEADING : s(x.heading), notes: s(x.notes), grand: N(x.grand), payments, status: x.status === "cancelled" ? "cancelled" : "active", createdAt: N(x.created_at),
+      lines, heading: x.heading == null ? DEFAULT_HEADING : s(x.heading), lang: x.lang === "ta" ? "ta" : "en", notes: s(x.notes), grand: N(x.grand), payments, status: x.status === "cancelled" ? "cancelled" : "active", createdAt: N(x.created_at),
     };
     if (x.updated_at != null) inv.updatedAt = N(x.updated_at);
     if (x.cancelled_at != null) inv.cancelledAt = N(x.cancelled_at);
