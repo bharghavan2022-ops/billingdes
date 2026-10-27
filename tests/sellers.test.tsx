@@ -59,6 +59,7 @@ describe("upgrading data saved with one business", () => {
 describe("numbering and tax per firm", () => {
   it("each firm counts its own bills", () => {
     const db = defaults();
+    db.settings.sellers.forEach((x) => { x.numbering = "simple"; });
     db.settings.sellers[0].nextNo = 50;
     expect(nextNoStr(db, SRI_ID)).toBe("50");
     expect(nextNoStr(db, VELAN_ID)).toBe("VC-1");
@@ -174,5 +175,46 @@ describe("bill heading follows the bill language", () => {
     expect(headingFor("", "ta")).toBe("வரி விலைப்பட்டியல்");
     expect(headingFor("BILL OF SUPPLY", "en")).toBe("BILL OF SUPPLY");
     expect(headingFor("BILL OF SUPPLY", "ta")).toBe("BILL OF SUPPLY");
+  });
+});
+
+describe("series numbering (4 digits: series + part)", () => {
+  const mk = (db: ReturnType<typeof defaults>, no: string, sellerId: string, at: number) =>
+    db.invoices.push({ id: "i" + db.invoices.length, no, sellerId, createdAt: at, lines: [], status: "active" } as never);
+  it("starts at 0101, continues the series, or opens a new one", async () => {
+    const { seriesPlan, parseSeriesNo, fmtSeriesNo } = await import("@/lib/billing/data");
+    const db = defaults();
+    expect(nextNoStr(db, VELAN_ID)).toBe("VC-0101");
+    mk(db, "VC-0501", VELAN_ID, 1); mk(db, "VC-0502", VELAN_ID, 2); mk(db, "VC-0503", VELAN_ID, 3);
+    const p = seriesPlan(db, VELAN_ID);
+    expect(p).toEqual({ current: 5, lastNo: "VC-0503", continueNo: "VC-0504", newNo: "VC-0601" });
+    expect(nextNoStr(db, VELAN_ID)).toBe("VC-0504");
+    expect(parseSeriesNo("VC-0504", "VC-")).toEqual({ series: 5, part: 4 });
+    expect(parseSeriesNo("VC-12", "VC-")).toBeNull();
+    expect(fmtSeriesNo("VC-", 7, 9)).toBe("VC-0709");
+  });
+  it("follows the latest bill's series and counts each firm on its own", async () => {
+    const { seriesPlan } = await import("@/lib/billing/data");
+    const db = defaults();
+    mk(db, "0501", SRI_ID, 1); mk(db, "0502", SRI_ID, 2); mk(db, "0601", SRI_ID, 3); // went to series 06, then back to 05 later
+    mk(db, "0503", SRI_ID, 4);
+    mk(db, "VC-0101", VELAN_ID, 5);
+    expect(seriesPlan(db, SRI_ID)).toMatchObject({ current: 5, continueNo: "0504", newNo: "0701", lastNo: "0503" });
+    expect(seriesPlan(db, VELAN_ID)).toMatchObject({ current: 1, continueNo: "VC-0102", newNo: "VC-0201" });
+  });
+  it("ignores bills that are not 4-digit numbers, and stops a full series at 99", async () => {
+    const { seriesPlan } = await import("@/lib/billing/data");
+    const db = defaults();
+    mk(db, "01", SRI_ID, 1); mk(db, "13", SRI_ID, 2); // older plain numbers
+    expect(seriesPlan(db, SRI_ID).current).toBeNull();
+    mk(db, "0599", SRI_ID, 3);
+    expect(seriesPlan(db, SRI_ID)).toMatchObject({ continueNo: null, newNo: "0601" });
+  });
+  it("plain count still works when chosen", () => {
+    const db = defaults();
+    db.settings.sellers[0].numbering = "simple"; db.settings.sellers[0].nextNo = 14;
+    expect(nextNoStr(db, SRI_ID)).toBe("14");
+    bumpNext(db, "14", SRI_ID);
+    expect(nextNoStr(db, SRI_ID)).toBe("15");
   });
 });

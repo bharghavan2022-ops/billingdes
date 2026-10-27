@@ -39,7 +39,9 @@ export interface BusinessDetails { name: string; address: string; mobile: string
   nameTa?: string; addressTa?: string }
 export interface BankDetails { holder: string; ifsc: string; acc: string; bank: string; customerId: string }
 /** One firm that issues bills (the "bill from" party): its letterhead, tax ids, bank details and own invoice numbering. */
-export interface Seller { id: string; biz: BusinessDetails; bank: BankDetails; prefix: string; nextNo: number }
+export interface Seller { id: string; biz: BusinessDetails; bank: BankDetails; prefix: string; nextNo: number;
+  /** "series": 4-digit numbers, 2-digit series + 2-digit part (0501, 0502 ...). "simple": plain counting (1, 2, 3 ...). Empty means series. */
+  numbering?: "series" | "simple" }
 export interface Settings {
   sellers: Seller[];
   /** The firm bills are issued from by default (the switch in the sidebar). */

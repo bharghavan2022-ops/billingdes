@@ -233,6 +233,6 @@ describe("numbering reset", () => {
     expect(db.settings.sellers[0].nextNo).toBe(7);
     const fresh = seed(false);
     expect(fresh.invoices.length).toBe(0);
-    expect(nextNoStr(fresh, "sri")).toBe("1");
+    expect(nextNoStr(fresh, "sri")).toBe("0101"); // new accounts number in series: series 01, part 01
   });
 });

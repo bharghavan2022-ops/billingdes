@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { N, GSTIN_RE, addDays, baseQty, calcInvoice, inWords, money, plain, round2, round3, subUnitOf, todayISO, trimNum, qtyByItem } from "@/lib/billing/calc";
 import { DEFAULT_HEADING, PAY_MODES, STATES } from "@/lib/billing/constants";
-import { addCatalogueItems, applyStock, bumpNext, invById, isIntra, itemById, nextNoStr, sellerOf, sellerOfInvoice, stockProblems, uid } from "@/lib/billing/data";
+import { addCatalogueItems, applyStock, bumpNext, seriesPlan, invById, isIntra, itemById, nextNoStr, sellerOf, sellerOfInvoice, stockProblems, uid } from "@/lib/billing/data";
 import { CATALOGUE_SIZE } from "@/lib/billing/catalogue";
 import type { Customer, Invoice, Item, Line, Party, SubUnit } from "@/lib/billing/types";
 import { useBilling } from "./billing-provider";
@@ -80,6 +80,7 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
     return m === "edit" ? { ...out, mode: "edit", id: inv.id, no: inv.no, date: inv.date, due: inv.due } : out;
   }
 
+  const plan = seriesPlan(db, ed.sellerId, ed.id ?? undefined);
   const lang: Lang = ed.lang === "ta" ? "ta" : "en";
   /** In a Tamil bill, the customer, shipping and notes fields get the floating Tamil keyboard too. */
   const tamilIf = lang === "ta" ? { "data-tamil": "" } : {};
@@ -232,7 +233,16 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
         <div className="small muted" style={{ marginTop: 8 }}>{[bizFor(seller.biz, lang).address, seller.biz.gstin && "GSTIN " + seller.biz.gstin, seller.biz.pan && "PAN " + seller.biz.pan].filter(Boolean).join(" · ")}</div>
       </div>
       <div className="card"><div className="grid3">
-        <div className="f"><label htmlFor="e-no">Invoice no.</label><input className="inp" id="e-no" value={ed.no} onChange={(e) => patch({ no: e.target.value })} /></div>
+        <div className="f"><label htmlFor="e-no">Invoice no.</label><input className="inp" id="e-no" value={ed.no} onChange={(e) => patch({ no: e.target.value })} />
+          {seller.numbering !== "simple" && (
+            <div className="numchips" role="group" aria-label="Number choices">
+              {plan.continueNo && <button type="button" className={ed.no === plan.continueNo ? "on" : ""} onClick={() => patch({ no: plan.continueNo! })}>{plan.current === null ? "First bill" : "Same series " + String(plan.current).padStart(2, "0")} → {plan.continueNo}</button>}
+              {plan.newNo && plan.current !== null && <button type="button" className={ed.no === plan.newNo ? "on" : ""} onClick={() => patch({ no: plan.newNo! })}>New series → {plan.newNo}</button>}
+              {plan.lastNo && <button type="button" className={ed.no === plan.lastNo ? "on" : ""} onClick={() => patch({ no: plan.lastNo })}>Same as last bill → {plan.lastNo}</button>}
+            </div>
+          )}
+          {ed.no.trim() && db.invoices.some((i) => i.id !== ed.id && i.no === ed.no.trim() && sellerOfInvoice(db.settings, i).id === ed.sellerId) && <div className="hint">Another bill of this firm already has this number. That is allowed.</div>}
+        </div>
         <div className="f"><label htmlFor="e-date">Invoice date</label><input className="inp" type="date" id="e-date" value={ed.date} onChange={(e) => patch({ date: e.target.value })} /></div>
         <div className="f"><label htmlFor="e-due">Due date</label><input className="inp" type="date" id="e-due" value={ed.due} onChange={(e) => patch({ due: e.target.value })} /></div>
       </div></div>

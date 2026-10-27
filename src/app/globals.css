@@ -239,3 +239,7 @@ a.btn.primary{color:var(--accent-ink)}
 .p-ruler{position:fixed;left:-10000px;top:0;width:210mm;height:0;overflow:hidden;visibility:hidden;pointer-events:none}
 .p-ruler .paper{zoom:1;height:296mm}
 @media print{.p-ruler{display:none!important}}
+
+.numchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.numchips button{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:4px 10px;font-size:12px;cursor:pointer}
+.numchips button.on{background:var(--brand,#2f7d66);color:#fff;border-color:transparent}

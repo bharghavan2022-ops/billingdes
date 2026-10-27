@@ -74,10 +74,14 @@ export default function SettingsPage() {
       <div className="card"><h2>Bank details printed on the bill: {seller.biz.name || "Business"}</h2>
         <div className="grid2">{text("bank", "holder", "Account holder name")}{text("bank", "bank", "Bank and branch")}{text("bank", "ifsc", "IFSC code")}{text("bank", "acc", "Account number")}{text("bank", "customerId", "Customer ID (optional)")}</div></div>
       <div className="card"><h2>Invoice numbering: {seller.biz.name || "Business"}</h2>
-        <div className="small muted" style={{ margin: "-6px 0 12px" }}>Each firm counts its own bills. Give the firms different prefixes so no two bills ever share a number.</div>
+        <div className="small muted" style={{ margin: "-6px 0 12px" }}>Each firm counts its own bills. <b>Series numbers</b> have four digits: the first two are the series and the last two are the part (0501, 0502, 0503 …). On a new bill you choose to continue the series, start a new one, or reuse the last number. <b>Plain count</b> simply goes 1, 2, 3 …</div>
+        <div className="segmented" role="group" aria-label="Numbering style" style={{ marginBottom: 12 }}>
+          <button type="button" className={seller.numbering !== "simple" ? "on" : ""} aria-pressed={seller.numbering !== "simple"} onClick={() => update((d) => { sellerOf(d.settings, editId).numbering = "series"; })}>Series and part (0501)</button>
+          <button type="button" className={seller.numbering === "simple" ? "on" : ""} aria-pressed={seller.numbering === "simple"} onClick={() => update((d) => { sellerOf(d.settings, editId).numbering = "simple"; })}>Plain count (1, 2, 3)</button>
+        </div>
         <div className="grid3">
           <div className="f"><label htmlFor="s-prefix">Number prefix (optional)</label><input className="inp" id="s-prefix" value={seller.prefix} onChange={(e) => setSellerTop("prefix", e.target.value)} /></div>
-          <div className="f"><label htmlFor="s-nextNo">Next invoice number</label><input className="inp" id="s-nextNo" type="number" min="1" value={seller.nextNo} onChange={(e) => setSellerTop("nextNo", Math.max(1, N(e.target.value)))} /></div>
+          {seller.numbering === "simple" && <div className="f"><label htmlFor="s-nextNo">Next invoice number</label><input className="inp" id="s-nextNo" type="number" min="1" value={seller.nextNo} onChange={(e) => setSellerTop("nextNo", Math.max(1, N(e.target.value)))} /></div>}
         </div></div>
       <div className="card"><h2>Text on every bill</h2>
         <div className="grid3">

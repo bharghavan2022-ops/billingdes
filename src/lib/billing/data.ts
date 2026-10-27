@@ -18,7 +18,7 @@ const TAMIL_DEFAULTS: Record<string, { nameTa: string; addressTa: string }> = {
 };
 
 export const fillSeller = (s: Partial<Seller> & { id: string }): Seller => ({
-  id: s.id, biz: { ...blankBiz(), ...TAMIL_DEFAULTS[s.id], ...s.biz }, bank: { ...blankBank(), ...s.bank }, prefix: s.prefix ?? "", nextNo: s.nextNo && s.nextNo > 0 ? s.nextNo : 1,
+  id: s.id, biz: { ...blankBiz(), ...TAMIL_DEFAULTS[s.id], ...s.biz }, bank: { ...blankBank(), ...s.bank }, prefix: s.prefix ?? "", nextNo: s.nextNo && s.nextNo > 0 ? s.nextNo : 1, numbering: s.numbering === "simple" ? "simple" : "series",
 });
 
 export const defaultSri = (): Seller => fillSeller({ id: SRI_ID, biz: { ...blankBiz(), name: "Sri Angalaeshwari Traders" } });
@@ -180,12 +180,50 @@ export const invById = (db: BillingData, id: string) => db.invoices.find((i) => 
 /** Within the seller's own state the tax is CGST + SGST, otherwise IGST. */
 export const isIntra = (db: Pick<BillingData, "settings">, pos: string, sellerId?: string) =>
   String(pos || "").trim().toLowerCase() === String(sellerOf(db.settings, sellerId).biz.state || "").trim().toLowerCase();
-export const nextNoStr = (db: Pick<BillingData, "settings">, sellerId?: string) => {
+const escRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const pad2 = (n: number) => String(n).padStart(2, "0");
+/** Splits a 4-digit number into its series (first two digits) and part (last two), after the firm's prefix. */
+export function parseSeriesNo(no: string, prefix: string): { series: number; part: number } | null {
+  const m = new RegExp("^" + escRe(prefix || "") + "(\\d{2})(\\d{2})$").exec(String(no || "").trim());
+  return m ? { series: Number(m[1]), part: Number(m[2]) } : null;
+}
+export const fmtSeriesNo = (prefix: string, series: number, part: number) => (prefix || "") + pad2(series) + pad2(part);
+
+export interface SeriesPlan {
+  /** Series of the firm's latest bill; null when it has no 4-digit bills yet. */
+  current: number | null;
+  /** Number of the latest bill, so the same number can be used again. */
+  lastNo: string;
+  /** Next part of the current series (0501 -> 0502); null when the series is full (99). */
+  continueNo: string | null;
+  /** First part of a brand new series (0501 -> 0601); null when there is no room left. */
+  newNo: string | null;
+}
+/** What the "same series" and "new series" choices would number the next bill. Worked out from the saved bills, so it can never drift. */
+export function seriesPlan(db: Pick<BillingData, "settings" | "invoices">, sellerId?: string, exceptId?: string): SeriesPlan {
+  const s = sellerOf(db.settings, sellerId), prefix = s.prefix || "";
+  const mine = db.invoices.filter((i) => i.id !== exceptId && sellerOfInvoice(db.settings, i).id === s.id)
+    .map((i) => ({ i, p: parseSeriesNo(i.no, prefix) })).filter((x): x is { i: Invoice; p: { series: number; part: number } } => !!x.p);
+  if (!mine.length) return { current: null, lastNo: "", continueNo: fmtSeriesNo(prefix, 1, 1), newNo: fmtSeriesNo(prefix, 1, 1) };
+  const last = mine.reduce((a, b) => (b.i.createdAt >= a.i.createdAt ? b : a));
+  const cur = last.p.series;
+  const maxPart = Math.max(...mine.filter((x) => x.p.series === cur).map((x) => x.p.part));
+  const maxSeries = Math.max(...mine.map((x) => x.p.series));
+  return {
+    current: cur, lastNo: last.i.no,
+    continueNo: maxPart < 99 ? fmtSeriesNo(prefix, cur, maxPart + 1) : null,
+    newNo: maxSeries < 99 ? fmtSeriesNo(prefix, maxSeries + 1, 1) : null,
+  };
+}
+
+export const nextNoStr = (db: Pick<BillingData, "settings" | "invoices">, sellerId?: string) => {
   const s = sellerOf(db.settings, sellerId);
+  if (s.numbering !== "simple") { const p = seriesPlan(db, sellerId); return p.continueNo ?? p.newNo ?? (s.prefix || "") + s.nextNo; }
   return (s.prefix || "") + s.nextNo;
 };
 export function bumpNext(db: BillingData, no: string, sellerId?: string) {
   const s = sellerOf(db.settings, sellerId);
+  if (s.numbering !== "simple") return; // series numbers are worked out from the saved bills
   const m = /(\d+)$/.exec(no);
   if (m && Number(m[1]) >= s.nextNo) s.nextNo = Number(m[1]) + 1;
 }
