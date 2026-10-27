@@ -21,9 +21,11 @@ export function paginate(rows: number[], avail: { full: number; last: number }):
     if (sum(rest) <= avail.last) { out.push(rest.map((_, j) => i + j)); break; }
     let take: number;
     if (sum(rest) <= avail.full) {
-      // They fit on one page but not with the totals: leave only as many rows for the last page as it can hold.
+      // They fit on one page but not with the totals: split them over two pages.
       take = 1;
       while (take < rest.length - 1 && sum(rest.slice(take)) > avail.last) take++;
+      // Share the rows between the last two pages rather than leaving a lone row on the earlier one.
+      take = Math.max(take, Math.floor(rest.length / 2));
     } else {
       let used = 0;
       take = 0;
