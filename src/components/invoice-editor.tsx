@@ -162,7 +162,7 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
   function save(print: boolean) {
     const lines: Line[] = ed.lines.filter((l) => l.itemId || String(l.name).trim() || N(l.qty)).map((l) => ({ itemId: l.itemId, name: String(l.name).trim(), hsn: l.hsn, unit: l.unit, qty: round3(baseQty(l)), rate: N(l.rate), disc: N(l.disc), gst: N(l.gst) }));
     const no = ed.no.trim(), errors: string[] = [];
-    if (!no) errors.push("Enter an invoice number."); else if (db.invoices.some((i) => i.no === no && i.id !== ed.id)) errors.push(`Invoice number ${no} is already used.`);
+    if (!no) errors.push("Enter an invoice number.");
     if (!ed.date) errors.push("Choose the invoice date.");
     if (!ed.cust.name.trim()) errors.push("Enter the customer name.");
     if (!lines.length) errors.push("Add at least one item.");

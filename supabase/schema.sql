@@ -64,8 +64,7 @@ create table if not exists public.invoices (
   created_at bigint not null,
   updated_at bigint,
   cancelled_at bigint,
-  primary key (user_id, id),
-  unique (user_id, no)
+  primary key (user_id, id)
 );
 
 create table if not exists public.invoice_lines (
@@ -115,6 +114,9 @@ create table if not exists public.stock_movements (
 -- Item codes (001, 002, ...). Added after the first version, so existing databases get the column here.
 alter table public.items add column if not exists code text;
 create unique index if not exists items_user_code_idx on public.items (user_id, code) where code is not null;
+
+-- Different bills may share an invoice number (the same long bill can arrive more than once), so drop the old unique rule.
+alter table public.invoices drop constraint if exists invoices_user_id_no_key;
 
 -- Which firm issued each bill (two firms can bill from one account). Existing bills stay empty and belong to the first firm.
 alter table public.invoices add column if not exists seller_id text;
