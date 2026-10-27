@@ -22,7 +22,7 @@ function activeKey(path: string) {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { db, update, saveState, saveError, email } = useBilling();
+  const { db, update, saveState, saveError, email, retry, backup, recovered, restoreRecovered, discardRecovered } = useBilling();
   const path = usePathname();
   const active = activeKey(path);
   const seller = activeSeller(db);
@@ -48,6 +48,22 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
       <main>
+        {mounted && saveState === "error" && (
+          <div className="err" role="alert" style={{ marginBottom: 12 }}>
+            <b>Your latest bills are NOT saved yet.</b> {saveError}
+            <div className="row" style={{ marginTop: 8, gap: 8 }}>
+              <button className="btn sm primary" onClick={retry}>Retry now</button>
+              <button className="btn sm" onClick={backup}>Download a backup of everything</button>
+            </div>
+            <div className="small" style={{ marginTop: 6 }}>Keep this page open until it says &ldquo;All changes saved&rdquo;. A copy is also kept in this browser.</div>
+          </div>
+        )}
+        {mounted && recovered && (
+          <div className="note" role="alert" style={{ marginBottom: 12 }}>
+            <span><b>Found {recovered.bills > 0 ? `${recovered.bills} bill${recovered.bills === 1 ? "" : "s"}` : "unsaved work"} from your last visit that never reached the database.</b> Restore them and they will be saved now.</span>
+            <span className="row" style={{ gap: 8 }}><button className="btn sm primary" onClick={restoreRecovered}>Restore and save</button><button className="btn sm" onClick={discardRecovered}>Discard</button></span>
+          </div>
+        )}
         {mounted && db.settings.sellers.length > 1 && (
           <div className="sellerbar" role="group" aria-label="Bill from">
             <span className="lbl">Bill from</span>
