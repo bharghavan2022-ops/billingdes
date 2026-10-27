@@ -136,17 +136,6 @@ export function fillCatalogueBlanks(db: BillingData): number {
     if (c.rate !== undefined && !N(it.rate)) { it.rate = c.rate; if (!it.unit || it.unit === "NOS") it.unit = c.unit || it.unit; did = true; }
     if (did) n++;
   }
-  // Bill lines saved with no rate (from items that had none) get the item's rate now.
-  for (const inv of db.invoices) {
-    for (const l of inv.lines) {
-      const it = db.items.find((x) => x.id === l.itemId);
-      if (!it) continue;
-      let did = false;
-      if (!N(l.rate) && N(it.rate)) { l.rate = it.rate; did = true; }
-      if (!l.hsn && !N(l.gst) && it.hsn) { l.hsn = it.hsn; l.gst = it.gst; did = true; }
-      if (did) n++;
-    }
-  }
   return n;
 }
 

@@ -37,7 +37,7 @@ export default function ItemsPage() {
       <div className="ph"><h1>{track ? "Items and stock" : "Items"}</h1><button className="btn primary" onClick={() => setDlg({ kind: "edit", id: null })}>＋ Add item</button></div>
       {blanks > 0 && (
         <div className="note">
-          <span><b>{blanks} items or bill lines still show 0 for rate, HSN or GST.</b> Fill them from the standard list and your invoices (nothing you typed is overwritten).</span>
+          <span><b>{blanks} items still show 0 for rate, HSN or GST.</b> Fill them from the standard list and your invoices (nothing you typed is overwritten).</span>
           <button className="btn sm primary" onClick={() => { update((d) => { fillCatalogueBlanks(d); }); toast("Zero values filled"); }}>Fill zero values</button>
         </div>
       )}

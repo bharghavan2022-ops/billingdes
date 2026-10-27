@@ -209,14 +209,15 @@ describe("filling blanks automatically", () => {
 
 
 describe("fillCatalogueBlanks by name and on bill lines", () => {
-  it("fills an item without a code match and the zero lines of a bill", async () => {
+  it("fills an item without a code match, but never touches a saved bill", async () => {
     const { fillCatalogueBlanks, seed } = await import("@/lib/billing/data");
     const db = seed();
     db.items = [{ id: "x", code: "999", name: "ரவை", alt: "", hsn: "", unit: "KGS", rate: 0, gst: 0, low: 0, stock: 0, active: true }];
     db.invoices = [{ id: "i", lines: [{ itemId: "x", name: "ரவை", hsn: "", unit: "KGS", qty: 2, rate: 0, disc: 0, gst: 0 }] } as never];
     expect(fillCatalogueBlanks(db)).toBeGreaterThan(0);
     expect(db.items[0]).toMatchObject({ hsn: "1103", gst: 5, rate: 65.96 });
-    expect(db.invoices[0].lines[0]).toMatchObject({ rate: 65.96, hsn: "1103", gst: 5 });
+    // bills already made are never changed behind the user's back
+    expect(db.invoices[0].lines[0]).toMatchObject({ rate: 0, hsn: "", gst: 0 });
   });
 });
 
