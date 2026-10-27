@@ -79,3 +79,26 @@ describe("how a quantity prints", () => {
     expect(subtotal([line({ qty: 0.25 }), line({ unit: "LTR", qty: 0.5 })])).toBe("");
   });
 });
+
+describe("page splitting", () => {
+  it("never puts more rows on a page than fit, and never loses a row", async () => {
+    const { paginate } = await import("@/components/paper");
+    const avail = { full: 730, last: 457 };
+    for (const n of [1, 5, 12, 13, 20, 21, 25, 37, 60]) {
+      const rows = Array.from({ length: n }, () => 36.08);
+      const pages = paginate(rows, avail);
+      expect(pages.flat()).toEqual(rows.map((_, i) => i));
+      pages.forEach((p, k) => {
+        const h = p.reduce((a, i) => a + rows[i], 0);
+        expect(h).toBeLessThanOrEqual(k === pages.length - 1 ? avail.last : avail.full);
+        expect(p.length).toBeGreaterThan(0);
+      });
+    }
+  });
+  it("copes with tall rows", async () => {
+    const { paginate } = await import("@/components/paper");
+    const pages = paginate([60, 36, 90, 36, 60, 36, 36, 120, 36], { full: 200, last: 120 });
+    expect(pages.flat().length).toBe(9);
+    expect(pages.length).toBeGreaterThan(2);
+  });
+});

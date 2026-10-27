@@ -6,8 +6,8 @@ export type CopyKey = keyof typeof COPIES | "all";
 export const STATUS_LABEL: Record<InvoiceStatusKey, string> = { paid: "Paid", partial: "Part paid", unpaid: "Unpaid", overdue: "Overdue", cancelled: "Cancelled" };
 export const MOVE_LABEL: Record<MoveType, string> = { SALE: "Sold", EDIT: "Bill edited", CANCEL: "Bill cancelled", PURCHASE: "Stock in", RETURN: "Customer return", DAMAGE: "Damaged or lost", COUNT: "Count correction", OPENING: "Opening stock" };
 export const PAY_MODES = ["Cash", "UPI", "Bank transfer", "Cheque"];
-export const FULLROWS = 24;
-export const LASTROWS = 11;
+export const FULLROWS = 16;
+export const LASTROWS = 7;
 
 /** Heading printed at the top of a bill unless the user changes it. */
 export const DEFAULT_HEADING = "TAX INVOICE";

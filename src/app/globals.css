@@ -235,3 +235,7 @@ a.btn.primary{color:var(--accent-ink)}
 
 .langbar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .langbar .lbl{margin:0}
+
+.p-ruler{position:fixed;left:-10000px;top:0;width:210mm;height:0;overflow:hidden;visibility:hidden;pointer-events:none}
+.p-ruler .paper{zoom:1;height:296mm}
+@media print{.p-ruler{display:none!important}}

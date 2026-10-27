@@ -1,4 +1,5 @@
-import { Fragment } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { N, dmy, fmtQty, inWords, invPaid, plain, round2, subUnitOf, totalsOf, trimNum } from "@/lib/billing/calc";
 import { DEFAULT_HEADING, FULLROWS, LASTROWS } from "@/lib/billing/constants";
 import { sellerOfInvoice } from "@/lib/billing/data";
@@ -7,13 +8,73 @@ import type { BillingData, Invoice } from "@/lib/billing/types";
 
 type Totals = ReturnType<typeof totalsOf>;
 
+const useLayoutEffectSafe = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+const CONT_H = 30, SAFETY = 8;
+
+/** Split the rows over pages from the real heights of the rows, so no row is ever cut off or lost at the bottom of a page. */
+export function paginate(rows: number[], avail: { full: number; last: number }): number[][] {
+  const out: number[][] = [];
+  const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
+  let i = 0;
+  while (i < rows.length) {
+    const rest = rows.slice(i);
+    if (sum(rest) <= avail.last) { out.push(rest.map((_, j) => i + j)); break; }
+    let take: number;
+    if (sum(rest) <= avail.full) {
+      // They fit on one page but not with the totals: leave only as many rows for the last page as it can hold.
+      take = 1;
+      while (take < rest.length - 1 && sum(rest.slice(take)) > avail.last) take++;
+    } else {
+      let used = 0;
+      take = 0;
+      while (take < rest.length && (take === 0 || used + rest[take] <= avail.full)) used += rest[take++];
+    }
+    out.push(Array.from({ length: take }, (_, j) => i + j));
+    i += take;
+  }
+  return out.length ? out : [[]];
+}
+
 export function Paper({ inv, settings, label }: { inv: Invoice; settings: BillingData["settings"]; label: string }) {
   const c = totalsOf(inv), showDisc = inv.lines.some((l) => N(l.disc) > 0);
   const cols = showDisc ? "8% 29% 9% 14% 10% 8% 11% 11%" : "8% 32% 10% 14% 11% 12% 13%";
-  const rest = inv.lines.map((_, i) => i), chunks: number[][] = [];
-  while (rest.length > LASTROWS) chunks.push(rest.splice(0, Math.min(FULLROWS, rest.length - 1)));
-  chunks.push(rest);
-  return <>{chunks.map((ch, k) => <Page key={k} {...{ inv, settings, c, label, ch, k, n: chunks.length, cols, showDisc }} />)}</>;
+  const all = inv.lines.map((_, i) => i);
+  const ruler = useRef<HTMLDivElement>(null);
+  const [measured, setMeasured] = useState<number[][] | null>(null);
+  const [host, setHost] = useState<HTMLElement | null>(null);
+  useEffect(() => setHost(document.body), []);
+
+  // Measure every row on a hidden single-page copy, then split the rows into pages that really fit.
+  useLayoutEffectSafe(() => {
+    if (!host) return;
+    const measure = () => {
+      const el = ruler.current;
+      if (!el) return;
+      const h = (sel: string) => el.querySelector<HTMLElement>(sel)?.getBoundingClientRect().height ?? 0;
+      const rows = Array.from(el.querySelectorAll<HTMLElement>(".p-body .r")).map((r) => r.getBoundingClientRect().height);
+      if (rows.length !== inv.lines.length) return;
+      // The room left for rows on a page that carries the totals; a page without them also gets the totals' space, minus the "continued" line.
+      const last = h(".p-body") - SAFETY;
+      const next = paginate(rows, { full: last + h(".rs") + h(".p-foot") - CONT_H, last });
+      setMeasured((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+    };
+    measure();
+    document.fonts?.ready.then(measure);
+  }, [host, inv, settings, label]);
+
+  const rest = [...all], fallback: number[][] = [];
+  while (rest.length > LASTROWS) fallback.push(rest.splice(0, Math.min(FULLROWS, rest.length - 1)));
+  fallback.push(rest);
+  const chunks = measured ?? fallback;
+  return (
+    <>
+      {chunks.map((ch, k) => <Page key={k} {...{ inv, settings, c, label, ch, k, n: chunks.length, cols, showDisc }} />)}
+      {host && createPortal(
+        <div ref={ruler} className="p-ruler" aria-hidden="true">
+          <Page {...{ inv, settings, c, label, ch: all, k: 0, n: 1, cols, showDisc }} />
+        </div>, host)}
+    </>
+  );
 }
 
 function Page({ inv, settings, c, label, ch, k, n, cols, showDisc }: {
