@@ -7,6 +7,9 @@ export const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toS
 
 export const SRI_ID = "sri";
 export const VELAN_ID = "velan";
+export const VELAN_ACC = "24970200003412";
+/** The account number first entered for VELAN & CO, with one digit too many. Saved accounts that still hold it are corrected once. */
+const VELAN_ACC_OLD = "249702000003412";
 
 const blankBiz = (): BusinessDetails => ({ name: "", address: "", mobile: "", gstin: "", pan: "", state: "Tamil Nadu" });
 const blankBank = (): BankDetails => ({ holder: "", ifsc: "", acc: "", bank: "", customerId: "" });
@@ -25,7 +28,7 @@ export const defaultSri = (): Seller => fillSeller({ id: SRI_ID, biz: { ...blank
 export const defaultVelan = (): Seller => fillSeller({
   id: VELAN_ID, prefix: "VC-", nextNo: 1,
   biz: { name: "VELAN & CO", address: "Flat No.17A, Hot Water Channel Road, Ponnagaram, Madurai - 625016.", mobile: "", gstin: "33EKOPS1500P1ZR", pan: "EKOPS1500P", state: "Tamil Nadu" },
-  bank: { holder: "VELAN & CO", ifsc: "FDRL0002497", acc: "249702000003412", bank: "Federal Bank", customerId: "152402872" },
+  bank: { holder: "VELAN & CO", ifsc: "FDRL0002497", acc: VELAN_ACC, bank: "Federal Bank", customerId: "152402872" },
 });
 
 export function defaults(): BillingData {
@@ -293,4 +296,11 @@ export function resetNumbering(db: BillingData): boolean {
   db.meta.numbersReset = true;
   for (const sl of db.settings.sellers) sl.nextNo = 1;
   return true;
+}
+
+/** Corrects known wrong details in saved settings, without touching anything the user has since changed. Returns true when it changed something. */
+export function correctKnownDetails(db: BillingData): boolean {
+  const v = db.settings.sellers.find((x) => x.id === VELAN_ID);
+  if (v && v.bank.acc === VELAN_ACC_OLD) { v.bank.acc = VELAN_ACC; return true; }
+  return false;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useBilling } from "@/components/billing-provider";
 import { ConfirmDialog } from "@/components/dialog";
 import { N, todayISO } from "@/lib/billing/calc";
@@ -12,8 +12,42 @@ import type { BillingData, Seller, Settings } from "@/lib/billing/types";
 type Group = "biz" | "bank";
 
 export default function SettingsPage() {
-  const { db, update, replace, toast } = useBilling();
-  const s = db.settings;
+  const { db, update, replace, toast, saveNow } = useBilling();
+  // The settings on this page are a draft: nothing changes until "Save settings" is pressed and the database confirms it.
+  const [draft, setDraft] = useState<Settings>(() => structuredClone(db.settings));
+  const baseJson = useRef(JSON.stringify(db.settings));
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [failed, setFailed] = useState("");
+  const dirty = JSON.stringify(draft) !== JSON.stringify(db.settings);
+  // When the saved settings change from elsewhere (a restore, an automatic correction) and there is nothing unsaved here, follow them.
+  useEffect(() => {
+    const now = JSON.stringify(db.settings);
+    if (JSON.stringify(draft) === baseJson.current) setDraft(structuredClone(db.settings));
+    baseJson.current = now;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db.settings]);
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    const leave = (e: MouseEvent) => {
+      const a = (e.target as HTMLElement | null)?.closest?.("a[href]");
+      if (a && !window.confirm("You have settings that are not saved yet. Leave without saving them?")) { e.preventDefault(); e.stopPropagation(); }
+    };
+    window.addEventListener("beforeunload", warn);
+    document.addEventListener("click", leave, true);
+    return () => { window.removeEventListener("beforeunload", warn); document.removeEventListener("click", leave, true); };
+  }, [dirty]);
+  const edit = (fn: (d: Settings) => void) => setDraft((d) => { const n = structuredClone(d); fn(n); return n; });
+  const saveSettings = async () => {
+    setSaving(true); setFailed("");
+    update((d) => { d.settings = { ...structuredClone(draft), sellerId: d.settings.sellerId }; });
+    const ok = await saveNow();
+    setSaving(false);
+    if (ok) { setSavedAt(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })); toast("Settings saved to your account ✓"); }
+    else setFailed("Could not save. Check the internet connection and press Save settings again.");
+  };
+  const s = draft;
   const fileRef = useRef<HTMLInputElement>(null);
   const [restoring, setRestoring] = useState<BillingData | null>(null);
   const [clearing, setClearing] = useState(false);
@@ -21,9 +55,9 @@ export default function SettingsPage() {
   // Which firm's details are being edited (starts with the one selected at the top of the page).
   const [editId, setEditId] = useState(s.sellerId);
   const seller = sellerOf(s, editId);
-  const setIn = (g: Group, k: string, v: string) => update((d) => { (sellerOf(d.settings, editId)[g] as unknown as Record<string, string>)[k] = v; });
-  const setSellerTop = <K extends "prefix" | "nextNo">(k: K, v: Seller[K]) => update((d) => { sellerOf(d.settings, editId)[k] = v; });
-  const setTop = <K extends keyof Settings>(k: K, v: Settings[K]) => update((d) => { d.settings[k] = v; });
+  const setIn = (g: Group, k: string, v: string) => edit((d) => { (sellerOf(d, editId)[g] as unknown as Record<string, string>)[k] = v; });
+  const setSellerTop = <K extends "prefix" | "nextNo">(k: K, v: Seller[K]) => edit((d) => { sellerOf(d, editId)[k] = v; });
+  const setTop = <K extends keyof Settings>(k: K, v: Settings[K]) => edit((d) => { d[k] = v; });
   const text = (g: Group, k: string, label: string, span = "") => (
     <div className={`f ${span}`}><label htmlFor={`s-${g}.${k}`}>{label}</label>
       <input className="inp" id={`s-${g}.${k}`} value={(seller[g] as unknown as Record<string, string>)[k]} onChange={(e) => setIn(g, k, e.target.value)} /></div>
@@ -51,6 +85,17 @@ export default function SettingsPage() {
   return (
     <>
       <div className="ph"><h1>Settings</h1></div>
+      <div className={`savebar${dirty ? " dirty" : ""}`} role="status">
+        <span>
+          {saving ? "Saving…" : failed ? <b style={{ color: "var(--bad)" }}>{failed}</b>
+            : dirty ? <b>You have changes that are not saved yet.</b>
+            : savedAt ? <>✓ Settings saved to your account at {savedAt}.</> : <>✓ Settings are saved.</>}
+        </span>
+        <span className="row" style={{ gap: 8 }}>
+          {dirty && <button className="btn sm" disabled={saving} onClick={() => { setDraft(structuredClone(db.settings)); setFailed(""); }}>Discard changes</button>}
+          <button className="btn sm primary" disabled={saving || !dirty} onClick={saveSettings}>{saving ? "Saving…" : "Save settings"}</button>
+        </span>
+      </div>
       <div className="card"><h2>Firms you bill from</h2>
         <div className="small muted" style={{ margin: "-6px 0 10px" }}>Each firm has its own letterhead, GSTIN, PAN, bank details and invoice numbers. Switch the firm for new bills at the top of any page. Choose which firm to edit here.</div>
         <div className="segmented" role="group" aria-label="Firm to edit">
@@ -76,8 +121,8 @@ export default function SettingsPage() {
       <div className="card"><h2>Invoice numbering: {seller.biz.name || "Business"}</h2>
         <div className="small muted" style={{ margin: "-6px 0 12px" }}>Each firm counts its own bills. <b>Series numbers</b> have four digits: the first two are the series and the last two are the part (0501, 0502, 0503 …). On a new bill you choose to continue the series, start a new one, or reuse the last number. <b>Plain count</b> simply goes 1, 2, 3 …</div>
         <div className="segmented" role="group" aria-label="Numbering style" style={{ marginBottom: 12 }}>
-          <button type="button" className={seller.numbering !== "simple" ? "on" : ""} aria-pressed={seller.numbering !== "simple"} onClick={() => update((d) => { sellerOf(d.settings, editId).numbering = "series"; })}>Series and part (0501)</button>
-          <button type="button" className={seller.numbering === "simple" ? "on" : ""} aria-pressed={seller.numbering === "simple"} onClick={() => update((d) => { sellerOf(d.settings, editId).numbering = "simple"; })}>Plain count (1, 2, 3)</button>
+          <button type="button" className={seller.numbering !== "simple" ? "on" : ""} aria-pressed={seller.numbering !== "simple"} onClick={() => edit((d) => { sellerOf(d, editId).numbering = "series"; })}>Series and part (0501)</button>
+          <button type="button" className={seller.numbering === "simple" ? "on" : ""} aria-pressed={seller.numbering === "simple"} onClick={() => edit((d) => { sellerOf(d, editId).numbering = "simple"; })}>Plain count (1, 2, 3)</button>
         </div>
         <div className="grid3">
           <div className="f"><label htmlFor="s-prefix">Number prefix (optional)</label><input className="inp" id="s-prefix" value={seller.prefix} onChange={(e) => setSellerTop("prefix", e.target.value)} /></div>

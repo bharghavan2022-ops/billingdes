@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { saveChanges } from "@/app/actions";
-import { fillCatalogueBlanks, migrate, resetNumbering } from "@/lib/billing/data";
+import { correctKnownDetails, fillCatalogueBlanks, migrate, resetNumbering } from "@/lib/billing/data";
 import { chunkChanges, diffAgainst, snapshotOf, type Snapshot } from "@/lib/billing/rows";
 import { download } from "@/lib/billing/export";
 import type { BillingData } from "@/lib/billing/types";
@@ -30,6 +30,8 @@ interface Ctx {
   email: string;
   /** Press "Retry" after fixing the cause of a failed save. */
   retry: () => void;
+  /** Saves now and tells whether the database confirmed it. */
+  saveNow: () => Promise<boolean>;
   /** Downloads everything in this browser as a backup file. */
   backup: () => void;
   /** Unsaved work found from an earlier visit that never reached the database. */
@@ -71,9 +73,9 @@ export function BillingProvider({ initial, email, children }: { initial: Billing
   const toastTimer = useRef<ReturnType<typeof setTimeout>>();
 
   /** Saves only the rows that changed since the last successful save. */
-  const flush = useCallback(async () => {
+  const flush = useCallback(async (): Promise<boolean> => {
     clearTimeout(timer.current);
-    if (!dirty.current || inflight.current) return;
+    if (!dirty.current || inflight.current) return !dirty.current && !inflight.current;
     inflight.current = true;
     dirty.current = false;
     setSaveState("saving");
@@ -101,6 +103,7 @@ export function BillingProvider({ initial, email, children }: { initial: Billing
       keepLocal(latest.current);
       timer.current = setTimeout(flush, 15000);
     }
+    return !failure;
   }, [keepLocal]);
 
   const commit = useCallback((next: BillingData) => {
@@ -146,6 +149,13 @@ export function BillingProvider({ initial, email, children }: { initial: Billing
     if (d) commit(d);
   }, [commit]);
   const discardRecovered = useCallback(() => { recoveredData.current = null; setRecovered(null); keepLocal(null); }, [keepLocal]);
+  /** Saves everything now and resolves true only once the database has confirmed it. */
+  const saveNow = useCallback(async (): Promise<boolean> => {
+    for (let i = 0; i < 100 && inflight.current; i++) await new Promise((r) => setTimeout(r, 100));
+    clearTimeout(timer.current);
+    if (!dirty.current) return true;
+    return flush();
+  }, [flush]);
   const retry = useCallback(() => { dirty.current = true; setSaveState("saving"); flush(); }, [flush]);
   const backup = useCallback(() => {
     download("billing-backup-" + new Date().toISOString().slice(0, 10) + ".json", JSON.stringify(latest.current, null, 1), "application/json");
@@ -154,7 +164,7 @@ export function BillingProvider({ initial, email, children }: { initial: Billing
   // Standard items loaded by an earlier version have no HSN, GST or rate: fill the blanks once, without overwriting anything.
   useEffect(() => {
     const probe = structuredClone(latest.current);
-    if (fillCatalogueBlanks(probe) > 0 || !probe.meta.numbersReset) update((d) => { fillCatalogueBlanks(d); resetNumbering(d); });
+    if (fillCatalogueBlanks(probe) > 0 || !probe.meta.numbersReset || correctKnownDetails(probe)) update((d) => { fillCatalogueBlanks(d); resetNumbering(d); correctKnownDetails(d); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -164,8 +174,8 @@ export function BillingProvider({ initial, email, children }: { initial: Billing
     return () => window.removeEventListener("beforeunload", warn);
   }, []);
 
-  const value = useMemo<Ctx>(() => ({ db, update, replace: commit, toast, saveState, saveError, email, retry, backup, recovered, restoreRecovered, discardRecovered }),
-    [db, update, commit, toast, saveState, saveError, email, retry, backup, recovered, restoreRecovered, discardRecovered]);
+  const value = useMemo<Ctx>(() => ({ db, update, replace: commit, toast, saveState, saveError, email, retry, saveNow, backup, recovered, restoreRecovered, discardRecovered }),
+    [db, update, commit, toast, saveState, saveError, email, retry, saveNow, backup, recovered, restoreRecovered, discardRecovered]);
   return (
     <BillingCtx.Provider value={value}>
       {children}

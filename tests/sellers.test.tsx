@@ -10,7 +10,7 @@ describe("the two firms", () => {
     const v = sellerOf(defaults().settings, VELAN_ID);
     expect(v.biz).toMatchObject({ name: "VELAN & CO", gstin: "33EKOPS1500P1ZR", pan: "EKOPS1500P", state: "Tamil Nadu" });
     expect(v.biz.address).toBe("Flat No.17A, Hot Water Channel Road, Ponnagaram, Madurai - 625016.");
-    expect(v.bank).toMatchObject({ acc: "249702000003412", customerId: "152402872", ifsc: "FDRL0002497", holder: "VELAN & CO" });
+    expect(v.bank).toMatchObject({ acc: "24970200003412", customerId: "152402872", ifsc: "FDRL0002497", holder: "VELAN & CO" });
     expect(v.biz.gstin).toMatch(GSTIN_RE);
     expect(v.biz.gstin.slice(2, 12)).toBe(v.biz.pan); // the PAN is embedded in the GSTIN
   });
@@ -113,7 +113,7 @@ describe("the printed bill", () => {
   it("shows VELAN & CO's letterhead, tax ids and bank details when issued by VELAN & CO", () => {
     const html = print(VELAN_ID);
     for (const t of ["VELAN &amp; CO", "Flat No.17A, Hot Water Channel Road, Ponnagaram, Madurai - 625016.", "GSTIN : 33EKOPS1500P1ZR", "PAN Number : EKOPS1500P",
-      "Account No: 249702000003412", "Customer ID: 152402872", "IFSC Code: FDRL0002497", "Authorised Signature for VELAN &amp; CO"]) expect(html).toContain(t);
+      "Account No: 24970200003412", "Customer ID: 152402872", "IFSC Code: FDRL0002497", "Authorised Signature for VELAN &amp; CO"]) expect(html).toContain(t);
     expect(html).not.toContain("Angalaeshwari");
     expect(html).not.toContain("33QBSPS1659N1ZE");
     expect(html).not.toContain("44511788356");
@@ -216,5 +216,19 @@ describe("series numbering (4 digits: series + part)", () => {
     expect(nextNoStr(db, SRI_ID)).toBe("14");
     bumpNext(db, "14", SRI_ID);
     expect(nextNoStr(db, SRI_ID)).toBe("15");
+  });
+});
+
+describe("account number correction", () => {
+  it("fixes the old VELAN & CO number once, and leaves a number the user set alone", async () => {
+    const { correctKnownDetails } = await import("@/lib/billing/data");
+    const db = defaults();
+    db.settings.sellers[1].bank.acc = "249702000003412";
+    expect(correctKnownDetails(db)).toBe(true);
+    expect(db.settings.sellers[1].bank.acc).toBe("24970200003412");
+    expect(correctKnownDetails(db)).toBe(false);
+    db.settings.sellers[1].bank.acc = "11112222333344";
+    expect(correctKnownDetails(db)).toBe(false);
+    expect(db.settings.sellers[1].bank.acc).toBe("11112222333344");
   });
 });
