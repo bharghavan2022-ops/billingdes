@@ -75,7 +75,8 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
     return { mode: "new", id: null, sellerId: sid, no: nextNoStr(db, sid), date: t, due: addDays(t, db.settings.dueDays), custId: "", cust: { name: "", address: "", mobile: "", gstin: "", pan: "" }, pos: sellerOf(db.settings, sid).biz.state, shipSame: true, ship: { name: "", address: "" }, lines: [blankLine()], heading: DEFAULT_HEADING, lang: "en", notes: db.settings.notes, received: "", recvMode: PAY_MODES[0], saveCust: true };
   }
   function fromInvoice(e: Ed, inv: Invoice, m: "edit" | "copy"): Ed {
-    const sid = sellerOfInvoice(db.settings, inv).id;
+    // A duplicate is issued by the firm currently chosen; an edit keeps the firm the bill already has.
+    const sid = m === "copy" ? sellerOf(db.settings, db.settings.sellerId).id : sellerOfInvoice(db.settings, inv).id;
     const out: Ed = { ...e, sellerId: sid, no: nextNoStr(db, sid), custId: inv.custId || "", cust: { ...inv.cust }, pos: inv.pos, shipSame: inv.shipSame, ship: { ...inv.ship }, heading: inv.heading ?? DEFAULT_HEADING, lang: inv.lang === "ta" ? "ta" : "en", notes: inv.notes || "", lines: inv.lines.map((l) => asTyped({ itemId: l.itemId, name: l.name, hsn: l.hsn, unit: l.unit, qty: l.qty, rate: l.rate, disc: l.disc || "", gst: l.gst })), saveCust: false };
     return m === "edit" ? { ...out, mode: "edit", id: inv.id, no: inv.no, date: inv.date, due: inv.due } : out;
   }
@@ -92,9 +93,13 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
     const was = sellerOf(db.settings, e.sellerId), now = sellerOf(db.settings, sid);
     return { ...e, sellerId: sid, no: e.no === nextNoStr(db, e.sellerId) ? nextNoStr(db, sid) : e.no, pos: e.pos === was.biz.state ? now.biz.state : e.pos };
   });
-  // A new bill follows the "Bill from" switch at the top of the page.
+  /** The one "Bill from" switch. On a new or duplicated bill it also sets the firm used everywhere else (Home, the sidebar, new numbers); on an edit it only changes this bill's firm. */
+  const chooseSeller = (sid: string) => {
+    if (mode !== "edit" && sid !== db.settings.sellerId) update((d) => { d.settings.sellerId = sid; });
+    setSeller(sid);
+  };
   useEffect(() => {
-    if (mode === "new") setSeller(db.settings.sellerId);
+    if (mode !== "edit") setSeller(db.settings.sellerId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [db.settings.sellerId]);
 
@@ -227,7 +232,7 @@ export function InvoiceEditor({ mode, id }: { mode: "new" | "edit" | "copy"; id?
         <div className="lbl">{BILL_FROM[lang]}</div>
         <div className="segmented" role="group" aria-label="Bill from">
           {db.settings.sellers.map((s) => (
-            <button key={s.id} type="button" className={s.id === ed.sellerId ? "on" : ""} aria-pressed={s.id === ed.sellerId} onClick={() => setSeller(s.id)}>{bizFor(s.biz, lang).name || "Business"}</button>
+            <button key={s.id} type="button" className={s.id === ed.sellerId ? "on" : ""} aria-pressed={s.id === ed.sellerId} onClick={() => chooseSeller(s.id)}>{bizFor(s.biz, lang).name || "Business"}</button>
           ))}
         </div>
         <div className="small muted" style={{ marginTop: 8 }}>{[bizFor(seller.biz, lang).address, seller.biz.gstin && "GSTIN " + seller.biz.gstin, seller.biz.pan && "PAN " + seller.biz.pan].filter(Boolean).join(" · ")}</div>

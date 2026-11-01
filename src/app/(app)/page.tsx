@@ -36,7 +36,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <div className="ph"><div><h1>Home</h1><div className="small muted">Showing {seller.biz.name || "your business"}. Switch firm with the Bill from buttons above.</div></div><Link className="btn primary" href="/new">＋ New bill</Link></div>
+      <div className="ph"><div><h1>Home</h1><div className="small muted">Showing {seller.biz.name || "your business"}. Change the firm with the Bill from buttons on the New bill page.</div></div><Link className="btn primary" href="/new">＋ New bill</Link></div>
       {db.meta.sampleNote && (
         <div className="note warn">
           <span><b>Sample data loaded from your bill no. 49.</b> The stock quantities are placeholders. Set real stock in Items, and check the business and bank details in Settings.</span>

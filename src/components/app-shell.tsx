@@ -22,7 +22,7 @@ function activeKey(path: string) {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { db, update, saveState, saveError, email, retry, backup, recovered, restoreRecovered, discardRecovered } = useBilling();
+  const { db, saveState, saveError, email, retry, backup, recovered, restoreRecovered, discardRecovered } = useBilling();
   const path = usePathname();
   const active = activeKey(path);
   const seller = activeSeller(db);
@@ -62,17 +62,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="note" role="alert" style={{ marginBottom: 12 }}>
             <span><b>Found {recovered.bills > 0 ? `${recovered.bills} bill${recovered.bills === 1 ? "" : "s"}` : "unsaved work"} from your last visit that never reached the database.</b> Restore them and they will be saved now.</span>
             <span className="row" style={{ gap: 8 }}><button className="btn sm primary" onClick={restoreRecovered}>Restore and save</button><button className="btn sm" onClick={discardRecovered}>Discard</button></span>
-          </div>
-        )}
-        {mounted && db.settings.sellers.length > 1 && (
-          <div className="sellerbar" role="group" aria-label="Bill from">
-            <span className="lbl">Bill from</span>
-            {db.settings.sellers.map((s) => (
-              <button key={s.id} type="button" className={s.id === seller.id ? "on" : ""} aria-pressed={s.id === seller.id}
-                onClick={() => { if (s.id !== seller.id) update((d) => { d.settings.sellerId = s.id; }); }}>
-                {s.biz.name || "Business"}
-              </button>
-            ))}
           </div>
         )}
         {mounted ? children : null}
