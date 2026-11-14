@@ -129,40 +129,40 @@ dialog::backdrop{background:rgba(36,54,49,.35)}
 .paper *{box-sizing:border-box}
 .pbox{height:100%;border:1px solid #666;display:flex;flex-direction:column}
 .p-head{display:grid;grid-template-columns:1.15fr 1fr;border-bottom:1px solid #666}
-.p-biz{padding:10px 12px;border-right:1px solid #666;line-height:1.5}
-.p-biz b{display:block;font-size:15px;margin-bottom:3px}
-.p-meta{padding:10px 12px}
-.p-meta .t{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px}
+.p-biz{padding:6px 10px;border-right:1px solid #666;line-height:1.35;font-size:11px}
+.p-biz b{display:block;font-size:14px;margin-bottom:2px}
+.p-meta{padding:6px 10px;font-size:11px}
+.p-meta .t{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px}
 .p-meta h3{font-size:15px;letter-spacing:.02em}
-.p-title{text-align:center;font-size:16px;font-weight:700;letter-spacing:.08em;margin:0 0 8px;text-transform:uppercase}
+.p-title{text-align:center;font-size:15px;font-weight:700;letter-spacing:.08em;margin:0;padding:4px 0 5px;border-bottom:1px solid #666;text-transform:uppercase}
 .p-copy{border:1px solid #888;color:#666;font-size:9px;padding:3px 6px;letter-spacing:.04em;white-space:nowrap}
-.kv{display:flex;justify-content:space-between;padding:2px 0;gap:10px}
+.kv{display:flex;justify-content:space-between;padding:1px 0;gap:10px}
 .kv span:first-child{color:#444}
 .p-parties{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #666}
 .p-party+.p-party{border-left:1px solid #666}
-.p-bar{background:#e4e4e4;font-weight:700;font-size:10.5px;letter-spacing:.06em;padding:4px 12px}
-.p-party .bd{padding:8px 12px;min-height:92px;line-height:1.5;font-size:11px}
-.p-party .bd b{font-size:12px;display:block;margin-bottom:2px;text-transform:uppercase}
+.p-bar{background:#e4e4e4;font-weight:700;font-size:10.5px;letter-spacing:.06em;padding:3px 10px}
+.p-party .bd{padding:5px 10px;min-height:56px;line-height:1.35;font-size:10.5px}
+.p-party .bd b{font-size:11.5px;display:block;margin-bottom:2px;text-transform:uppercase}
 .p-items{flex:1;display:flex;flex-direction:column;min-height:0}
 .p-body{flex:1;min-height:0}
 .r{display:grid}
-.r .c{padding:5px 8px;min-width:0;overflow-wrap:anywhere}
+.r .c{padding:3px 6px;min-width:0;overflow-wrap:anywhere;font-size:11px;line-height:1.25}
 .r .n{text-align:right}
 .r.rh{background:#e4e4e4;font-weight:700;font-size:10.5px;letter-spacing:.04em}
-.r.rh .c{padding:5px 8px}
+.r.rh .c{padding:3px 6px}
 .r.rs{background:#e4e4e4;font-weight:700;border-top:1px solid #666}
-.r small{display:block;font-size:9px;color:#555;line-height:1.1}
+.r small{display:inline;margin-left:3px;font-size:9px;color:#555}
 .p-foot{display:grid;grid-template-columns:1.1fr .9fr;border-top:1px solid #666}
-.p-foot .l{padding:8px 12px;font-size:10.5px;line-height:1.5;border-right:1px solid #666}
+.p-foot .l{padding:5px 10px;font-size:10px;line-height:1.35;border-right:1px solid #666}
 .p-foot .l h4{margin:0 0 2px;font-size:10px;letter-spacing:.06em}
-.p-foot .l .sec+.sec{margin-top:8px}
+.p-foot .l .sec+.sec{margin-top:5px}
 .p-foot .l pre{margin:0;font:inherit;white-space:pre-wrap}
-.p-foot .rr{display:flex;flex-direction:column;justify-content:space-between;min-height:100px}
-.p-tot{padding:8px 12px;display:grid;gap:3px}
+.p-foot .rr{display:flex;flex-direction:column;justify-content:space-between;min-height:70px}
+.p-tot{padding:5px 10px;display:grid;gap:1px;font-size:11px}
 .p-tot div{display:flex;justify-content:space-between;gap:10px}
-.p-tot .g{font-weight:700;border-top:1px solid #999;margin-top:3px;padding-top:4px;font-size:13px}
+.p-tot .g{font-weight:700;border-top:1px solid #999;margin-top:2px;padding-top:3px;font-size:12.5px}
 .p-tot .w{display:block;text-align:right;font-size:10.5px;color:#333;line-height:1.35}
-.p-sign{padding:8px 12px 10px;text-align:right;font-size:10.5px;color:#333;min-height:64px;display:flex;align-items:flex-end;justify-content:flex-end}
+.p-sign{padding:5px 10px 6px;text-align:right;font-size:10px;color:#333;min-height:40px;display:flex;align-items:flex-end;justify-content:flex-end}
 .p-cont{padding:6px 12px;font-size:10.5px;color:#555;text-align:right;border-top:1px solid #666}
 .p-page{position:absolute;right:10mm;bottom:3mm;font-size:9px;color:#777}
 .paper.cancelled::after{content:"CANCELLED";position:absolute;left:0;right:0;top:42%;text-align:center;font-size:84px;font-weight:700;color:rgba(190,30,30,.18);transform:rotate(-24deg);pointer-events:none}
