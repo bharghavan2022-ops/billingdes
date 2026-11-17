@@ -9,28 +9,21 @@ import type { BillingData, Invoice } from "@/lib/billing/types";
 type Totals = ReturnType<typeof totalsOf>;
 
 const useLayoutEffectSafe = typeof window !== "undefined" ? useLayoutEffect : useEffect;
-const CONT_H = 30, SAFETY = 8;
+const SAFETY = 8;
 
 /** Split the rows over pages from the real heights of the rows, so no row is ever cut off or lost at the bottom of a page. */
-export function paginate(rows: number[], avail: { full: number; last: number }): number[][] {
+export function paginate(rows: number[], avail: { full: number; last: number }, minLast = 2): number[][] {
   const out: number[][] = [];
   const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
   let i = 0;
   while (i < rows.length) {
     const rest = rows.slice(i);
     if (sum(rest) <= avail.last) { out.push(rest.map((_, j) => i + j)); break; }
-    let take: number;
-    if (sum(rest) <= avail.full) {
-      // They fit on one page but not with the totals: split them over two pages.
-      take = 1;
-      while (take < rest.length - 1 && sum(rest.slice(take)) > avail.last) take++;
-      // Share the rows between the last two pages rather than leaving a lone row on the earlier one.
-      take = Math.max(take, Math.floor(rest.length / 2));
-    } else {
-      let used = 0;
-      take = 0;
-      while (take < rest.length && (take === 0 || used + rest[take] <= avail.full)) used += rest[take++];
-    }
+    // Fill the page as full as it will go...
+    let used = 0, take = 0;
+    while (take < rest.length && (take === 0 || used + rest[take] <= avail.full)) used += rest[take++];
+    // ...but leave a few rows for the page that carries the totals, so it is never just a footer.
+    take = Math.max(1, Math.min(take, rest.length - Math.min(minLast, rest.length - 1)));
     out.push(Array.from({ length: take }, (_, j) => i + j));
     i += take;
   }
@@ -55,9 +48,9 @@ export function Paper({ inv, settings, label }: { inv: Invoice; settings: Billin
       const h = (sel: string) => el.querySelector<HTMLElement>(sel)?.getBoundingClientRect().height ?? 0;
       const rows = Array.from(el.querySelectorAll<HTMLElement>(".p-body .r")).map((r) => r.getBoundingClientRect().height);
       if (rows.length !== inv.lines.length) return;
-      // The room left for rows on a page that carries the totals; a page without them also gets the totals' space, minus the "continued" line.
+      // The room left for rows on a page that carries the totals; a page without them gets the totals' space instead (its page subtotal row is as tall as the subtotal row).
       const last = h(".p-body") - SAFETY;
-      const next = paginate(rows, { full: last + h(".rs") + h(".p-foot") - CONT_H, last });
+      const next = paginate(rows, { full: last + h(".p-foot"), last });
       setMeasured((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
     };
     measure();
@@ -123,8 +116,8 @@ function Page({ inv, settings, c, label, ch, k, n, cols, showDisc }: {
             })}
           </div>
           {last
-            ? <div className="r rs" style={g}><div className="c"></div><div className="c">{T("SUBTOTAL")}</div><div className="c"></div><div className="c n">{new Set(inv.lines.map((l) => l.unit)).size === 1 ? trimNum(c.qty, 2) : ""}</div><div className="c"></div>{showDisc && <div className="c"></div>}<div className="c n">₹{plain(c.tax)}</div><div className="c n">₹{plain(c.total)}</div></div>
-            : <div className="p-cont">{T("Continued on next page")}</div>}
+            ? <div className="r rs" style={g}><div className="c"></div><div className="c">{n > 1 ? T("SUBTOTAL (ALL PAGES)") : T("SUBTOTAL")}</div><div className="c"></div><div className="c n">{new Set(inv.lines.map((l) => l.unit)).size === 1 ? trimNum(c.qty, 2) : ""}</div><div className="c"></div>{showDisc && <div className="c"></div>}<div className="c n">₹{plain(c.tax)}</div><div className="c n">₹{plain(c.total)}</div></div>
+            : <div className="r rs" style={g}><div className="c"></div><div className="c">{T("PAGE SUBTOTAL")} <small>{T("Continued on next page")}</small></div><div className="c"></div><div className="c"></div><div className="c"></div>{showDisc && <div className="c"></div>}<div className="c n">₹{plain(ch.reduce((a, i) => a + c.rows[i].tax, 0))}</div><div className="c n">₹{plain(ch.reduce((a, i) => a + c.rows[i].amount, 0))}</div></div>}
         </div>
         {last && (
           <div className="p-foot">

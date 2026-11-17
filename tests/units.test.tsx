@@ -81,19 +81,28 @@ describe("how a quantity prints", () => {
 });
 
 describe("page splitting", () => {
-  it("never puts more rows on a page than fit, and never loses a row", async () => {
+  const avail = { full: 730, last: 560 };
+  it("fills each page, never loses a row, and leaves a few rows for the totals page", async () => {
     const { paginate } = await import("@/components/paper");
-    const avail = { full: 730, last: 457 };
-    for (const n of [1, 5, 12, 13, 20, 21, 25, 37, 60]) {
-      const rows = Array.from({ length: n }, () => 36.08);
+    for (const n of [1, 5, 12, 20, 28, 29, 36, 40, 60, 90]) {
+      const rows = Array.from({ length: n }, () => 20.1);
       const pages = paginate(rows, avail);
       expect(pages.flat()).toEqual(rows.map((_, i) => i));
-      pages.forEach((p, k) => {
-        const h = p.reduce((a, i) => a + rows[i], 0);
-        expect(h).toBeLessThanOrEqual(k === pages.length - 1 ? avail.last : avail.full);
-        expect(p.length).toBeGreaterThan(0);
+      pages.forEach((pg, k) => {
+        const h = pg.reduce((a, i) => a + rows[i], 0);
+        const isLast = k === pages.length - 1;
+        expect(h).toBeLessThanOrEqual(isLast ? avail.last : avail.full);
+        expect(pg.length).toBeGreaterThan(0);
+        if (isLast && pages.length > 1) expect(pg.length).toBeGreaterThanOrEqual(Math.min(2, n - 1));
       });
     }
+  });
+  it("puts a 36 item bill on a full first page, not half and half", async () => {
+    const { paginate } = await import("@/components/paper");
+    const pages = paginate(Array.from({ length: 36 }, () => 20.1), avail);
+    expect(pages.length).toBe(2);
+    expect(pages[0].length).toBeGreaterThanOrEqual(30);
+    expect(pages[1].length).toBe(2);
   });
   it("copes with tall rows", async () => {
     const { paginate } = await import("@/components/paper");
