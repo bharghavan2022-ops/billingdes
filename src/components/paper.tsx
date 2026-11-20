@@ -146,6 +146,7 @@ function Page({ inv, settings, c, label, ch, k, n, cols, showDisc, carry, densit
               );
             })}
           </div>
+          {!last && <div className="r rs" style={g}><div className="c"></div><div className="c">{T("PAGE SUBTOTAL")} <small>{T("Continued on next page")}</small></div><div className="c"></div><div className="c"></div><div className="c"></div>{showDisc && <div className="c"></div>}<div className="c n">₹{plain(ch.reduce((a, i) => a + c.rows[i].tax, 0))}</div><div className="c n">₹{plain(ch.reduce((a, i) => a + c.rows[i].amount, 0))}</div></div>}
           {last && <div className="r rs" style={g}><div className="c"></div><div className="c">{n > 1 ? T("SUBTOTAL (ALL PAGES)") : T("SUBTOTAL")}</div><div className="c"></div><div className="c n">{new Set(inv.lines.map((l) => l.unit)).size === 1 ? trimNum(c.qty, 2) : ""}</div><div className="c"></div>{showDisc && <div className="c"></div>}<div className="c n">₹{plain(c.tax)}</div><div className="c n">₹{plain(c.total)}</div></div>}
         </div>
         {!last && (
