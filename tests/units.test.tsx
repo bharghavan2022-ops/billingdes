@@ -81,7 +81,7 @@ describe("how a quantity prints", () => {
 });
 
 describe("page splitting", () => {
-  const avail = { single: 580, full: 700, last: 560 };
+  const avail = { single: 580, first: 700, mid: 680, last: 540 };
   it("fills each page, never loses a row, and leaves a few rows for the totals page", async () => {
     const { paginate } = await import("@/components/paper");
     for (const n of [1, 5, 12, 20, 28, 29, 36, 40, 60, 90]) {
@@ -91,7 +91,7 @@ describe("page splitting", () => {
       pages.forEach((pg, k) => {
         const h = pg.reduce((a, i) => a + rows[i], 0);
         const isLast = k === pages.length - 1;
-        expect(h).toBeLessThanOrEqual(pages.length === 1 ? avail.single : isLast ? avail.last : avail.full);
+        expect(h).toBeLessThanOrEqual(pages.length === 1 ? avail.single : isLast ? avail.last : k === 0 ? avail.first : avail.mid);
         expect(pg.length).toBeGreaterThan(0);
         if (isLast && pages.length > 1) expect(pg.length).toBeGreaterThanOrEqual(Math.min(2, n - 1));
       });
@@ -106,7 +106,7 @@ describe("page splitting", () => {
   });
   it("copes with tall rows", async () => {
     const { paginate } = await import("@/components/paper");
-    const pages = paginate([60, 36, 90, 36, 60, 36, 36, 120, 36], { single: 130, full: 200, last: 120 });
+    const pages = paginate([60, 36, 90, 36, 60, 36, 36, 120, 36], { single: 130, first: 200, mid: 190, last: 120 });
     expect(pages.flat().length).toBe(9);
     expect(pages.length).toBeGreaterThan(2);
   });

@@ -8,7 +8,7 @@ const TA: Record<string, string> = {
   "BILL TO": "வாங்குபவர்", "SHIP TO": "அனுப்ப வேண்டிய முகவரி",
   "Mobile": "கைபேசி", "GSTIN": "ஜி.எஸ்.டி.ஐ.என்", "PAN Number": "பான் எண்", "Place of Supply": "வழங்கும் இடம்",
   "S.NO.": "வ.எண்", "ITEMS": "பொருட்கள்", "HSN": "எச்.எஸ்.என்", "QTY.": "அளவு", "RATE": "விலை", "DISC.": "தள்ளுபடி", "TAX": "வரி", "AMOUNT": "தொகை",
-  "SUBTOTAL": "துணை மொத்தம்", "PAGE SUBTOTAL": "பக்க துணை மொத்தம்", "SUBTOTAL (ALL PAGES)": "துணை மொத்தம் (அனைத்து பக்கங்கள்)", "Continued on next page": "அடுத்த பக்கத்தில் தொடர்கிறது",
+  "SUBTOTAL": "துணை மொத்தம்", "PAGE SUBTOTAL": "பக்க துணை மொத்தம்", "BROUGHT FORWARD": "முந்தைய பக்க மொத்தம்", "SUBTOTAL (ALL PAGES)": "துணை மொத்தம் (அனைத்து பக்கங்கள்)", "Continued on next page": "அடுத்த பக்கத்தில் தொடர்கிறது",
   "BANK DETAILS": "வங்கி விவரங்கள்", "Name": "பெயர்", "IFSC Code": "ஐ.எஃப்.எஸ்.சி குறியீடு", "Account No": "கணக்கு எண்", "Customer ID": "வாடிக்கையாளர் எண்", "Bank": "வங்கி",
   "NOTES": "குறிப்புகள்", "TERMS AND CONDITIONS": "விதிமுறைகள்",
   "Taxable Amount": "வரிக்குட்பட்ட தொகை", "Round Off": "முழுமையாக்கல்", "Total Amount": "மொத்தத் தொகை", "Received Amount": "பெறப்பட்ட தொகை", "Balance Due": "நிலுவைத் தொகை",

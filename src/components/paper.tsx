@@ -12,17 +12,18 @@ const useLayoutEffectSafe = typeof window !== "undefined" ? useLayoutEffect : us
 const SAFETY = 8;
 
 /** Split the rows over pages from the real heights of the rows, so no row is ever cut off or lost at the bottom of a page. */
-export function paginate(rows: number[], avail: { single: number; full: number; last: number }, minLast = 2): number[][] {
+export function paginate(rows: number[], avail: { single: number; first: number; mid: number; last: number }, minLast = 2): number[][] {
   const out: number[][] = [];
   const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
   if (sum(rows) <= avail.single) return [rows.map((_, i) => i)];
   let i = 0;
   while (i < rows.length) {
     const rest = rows.slice(i);
-    if (sum(rest) <= avail.last) { out.push(rest.map((_, j) => i + j)); break; }
-    // Fill the page as full as it will go...
+    if (out.length > 0 && sum(rest) <= avail.last) { out.push(rest.map((_, j) => i + j)); break; }
+    // Fill the page as full as it will go (the first page has no "brought forward" row, later ones do)...
+    const cap = out.length === 0 ? avail.first : avail.mid;
     let used = 0, take = 0;
-    while (take < rest.length && (take === 0 || used + rest[take] <= avail.full)) used += rest[take++];
+    while (take < rest.length && (take === 0 || used + rest[take] <= cap)) used += rest[take++];
     // ...but leave a couple of rows for the last page, so it is never just a footer.
     take = Math.max(1, Math.min(take, rest.length - Math.min(minLast, rest.length - 1)));
     out.push(Array.from({ length: take }, (_, j) => i + j));
@@ -49,9 +50,9 @@ export function Paper({ inv, settings, label }: { inv: Invoice; settings: Billin
       const pages = el.querySelectorAll<HTMLElement>(".paper");
       const body = (pg?: HTMLElement) => pg?.querySelector<HTMLElement>(".p-body")?.getBoundingClientRect().height ?? 0;
       const rows = Array.from(pages[0]?.querySelectorAll<HTMLElement>(".p-body .r") ?? []).map((r) => r.getBoundingClientRect().height);
-      if (rows.length !== inv.lines.length || pages.length < 3) return;
-      // Room for rows on a one-page bill, on a page that continues, and on the last page of a longer bill (each has different footers).
-      const next = paginate(rows, { single: body(pages[0]) - SAFETY, full: body(pages[1]) - SAFETY, last: body(pages[2]) - SAFETY });
+      if (rows.length !== inv.lines.length || pages.length < 4) return;
+      // Room for rows on a one-page bill, on the first page, on the last page and on a page in between (each has different top and bottom rows).
+      const next = paginate(rows, { single: body(pages[0]) - SAFETY, first: body(pages[1]) - SAFETY, last: body(pages[2]) - SAFETY, mid: body(pages[3]) - SAFETY });
       setMeasured((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
     };
     measure();
@@ -64,19 +65,26 @@ export function Paper({ inv, settings, label }: { inv: Invoice; settings: Billin
   const chunks = measured ?? fallback;
   return (
     <>
-      {chunks.map((ch, k) => <Page key={k} {...{ inv, settings, c, label, ch, k, n: chunks.length, cols, showDisc }} />)}
+      {chunks.map((ch, k) => {
+        const before = chunks.slice(0, k).flat();
+        const carry = { tax: before.reduce((a, i) => a + c.rows[i].tax, 0), amount: before.reduce((a, i) => a + c.rows[i].amount, 0) };
+        return <Page key={k} {...{ inv, settings, c, label, ch, k, n: chunks.length, cols, showDisc, carry }} />;
+      })}
       {host && createPortal(
         <div ref={ruler} className="p-ruler" aria-hidden="true">
           <Page {...{ inv, settings, c, label, ch: all, k: 0, n: 1, cols, showDisc }} />
           <Page {...{ inv, settings, c, label, ch: [], k: 0, n: 2, cols, showDisc }} />
           <Page {...{ inv, settings, c, label, ch: [], k: 1, n: 2, cols, showDisc }} />
+          <Page {...{ inv, settings, c, label, ch: [], k: 1, n: 3, cols, showDisc }} />
         </div>, host)}
     </>
   );
 }
 
-function Page({ inv, settings, c, label, ch, k, n, cols, showDisc }: {
+function Page({ inv, settings, c, label, ch, k, n, cols, showDisc, carry }: {
   inv: Invoice; settings: BillingData["settings"]; c: Totals; label: string; ch: number[]; k: number; n: number; cols: string; showDisc: boolean;
+  /** Tax and amount of every earlier page, shown at the top of this page. */
+  carry?: { tax: number; amount: number };
 }) {
   const lang = inv.lang, T = (x: string) => tr(lang, x);
   const seller = sellerOfInvoice(settings, inv), b = bizFor(seller.biz, lang), bk = seller.bank, last = k === n - 1, g = { gridTemplateColumns: cols };
@@ -106,6 +114,7 @@ function Page({ inv, settings, c, label, ch, k, n, cols, showDisc }: {
         </div>
         <div className="p-items">
           <div className="r rh" style={g}><div className="c">{T("S.NO.")}</div><div className="c">{T("ITEMS")}</div><div className="c">{T("HSN")}</div><div className="c n">{T("QTY.")}</div><div className="c n">{T("RATE")}</div>{showDisc && <div className="c n">{T("DISC.")}</div>}<div className="c n">{T("TAX")}</div><div className="c n">{T("AMOUNT")}</div></div>
+          {k > 0 && <div className="r rs carry" style={g}><div className="c"></div><div className="c">{T("BROUGHT FORWARD")} <small>{T("Page")} {k === 1 ? "1" : `1–${k}`}</small></div><div className="c"></div><div className="c"></div><div className="c"></div>{showDisc && <div className="c"></div>}<div className="c n">₹{plain(carry?.tax ?? 0)}</div><div className="c n">₹{plain(carry?.amount ?? 0)}</div></div>}
           <div className="p-body">
             {ch.map((i) => {
               const l = inv.lines[i], r = c.rows[i];
@@ -119,7 +128,6 @@ function Page({ inv, settings, c, label, ch, k, n, cols, showDisc }: {
               );
             })}
           </div>
-          {n > 1 && <div className="r rs" style={g}><div className="c"></div><div className="c">{T("PAGE SUBTOTAL")}{!last && <> <small>{T("Continued on next page")}</small></>}</div><div className="c"></div><div className="c"></div><div className="c"></div>{showDisc && <div className="c"></div>}<div className="c n">₹{plain(ch.reduce((a, i) => a + c.rows[i].tax, 0))}</div><div className="c n">₹{plain(ch.reduce((a, i) => a + c.rows[i].amount, 0))}</div></div>}
           {last && <div className="r rs" style={g}><div className="c"></div><div className="c">{n > 1 ? T("SUBTOTAL (ALL PAGES)") : T("SUBTOTAL")}</div><div className="c"></div><div className="c n">{new Set(inv.lines.map((l) => l.unit)).size === 1 ? trimNum(c.qty, 2) : ""}</div><div className="c"></div>{showDisc && <div className="c"></div>}<div className="c n">₹{plain(c.tax)}</div><div className="c n">₹{plain(c.total)}</div></div>}
         </div>
         {!last && (
