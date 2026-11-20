@@ -38,6 +38,10 @@ export function Paper({ inv, settings, label }: { inv: Invoice; settings: Billin
   const all = inv.lines.map((_, i) => i);
   const ruler = useRef<HTMLDivElement>(null);
   const [measured, setMeasured] = useState<number[][] | null>(null);
+  // How tightly the rows are set: 0 normal, 1 and 2 a little denser. A bill that only just overflows one page is set denser so it fits on one, instead of leaving a mostly empty second page.
+  const [density, setDensity] = useState(0);
+  const settled = useRef(false);
+  useLayoutEffectSafe(() => { settled.current = false; setDensity(0); }, [inv, settings, label]);
   const [host, setHost] = useState<HTMLElement | null>(null);
   useEffect(() => setHost(document.body), []);
 
@@ -52,12 +56,17 @@ export function Paper({ inv, settings, label }: { inv: Invoice; settings: Billin
       const rows = Array.from(pages[0]?.querySelectorAll<HTMLElement>(".p-body .r") ?? []).map((r) => r.getBoundingClientRect().height);
       if (rows.length !== inv.lines.length || pages.length < 4) return;
       // Room for rows on a one-page bill, on the first page, on the last page and on a page in between (each has different top and bottom rows).
-      const next = paginate(rows, { single: body(pages[0]) - SAFETY, first: body(pages[1]) - SAFETY, last: body(pages[2]) - SAFETY, mid: body(pages[3]) - SAFETY });
+      const single = body(pages[0]) - SAFETY;
+      const next = paginate(rows, { single, first: body(pages[1]) - SAFETY, last: body(pages[2]) - SAFETY, mid: body(pages[3]) - SAFETY });
+      if (next.length > 1 && !settled.current && rows.reduce((a, b) => a + b, 0) <= single * 1.4) {
+        if (density < 2) { setDensity(density + 1); return; }
+        settled.current = true; setDensity(0); return; // even the densest setting does not fit one page: use the normal one
+      }
       setMeasured((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
     };
     measure();
     document.fonts?.ready.then(measure);
-  }, [host, inv, settings, label]);
+  }, [host, inv, settings, label, density]);
 
   const rest = [...all], fallback: number[][] = [];
   while (rest.length > LASTROWS) fallback.push(rest.splice(0, Math.min(FULLROWS, rest.length - 1)));
@@ -68,23 +77,24 @@ export function Paper({ inv, settings, label }: { inv: Invoice; settings: Billin
       {chunks.map((ch, k) => {
         const before = chunks.slice(0, k).flat();
         const carry = { tax: before.reduce((a, i) => a + c.rows[i].tax, 0), amount: before.reduce((a, i) => a + c.rows[i].amount, 0) };
-        return <Page key={k} {...{ inv, settings, c, label, ch, k, n: chunks.length, cols, showDisc, carry }} />;
+        return <Page key={k} {...{ inv, settings, c, label, ch, k, n: chunks.length, cols, showDisc, carry, density }} />;
       })}
       {host && createPortal(
         <div ref={ruler} className="p-ruler" aria-hidden="true">
-          <Page {...{ inv, settings, c, label, ch: all, k: 0, n: 1, cols, showDisc }} />
-          <Page {...{ inv, settings, c, label, ch: [], k: 0, n: 2, cols, showDisc }} />
-          <Page {...{ inv, settings, c, label, ch: [], k: 1, n: 2, cols, showDisc }} />
-          <Page {...{ inv, settings, c, label, ch: [], k: 1, n: 3, cols, showDisc }} />
+          <Page {...{ inv, settings, c, label, ch: all, k: 0, n: 1, cols, showDisc, density }} />
+          <Page {...{ inv, settings, c, label, ch: [], k: 0, n: 2, cols, showDisc, density }} />
+          <Page {...{ inv, settings, c, label, ch: [], k: 1, n: 2, cols, showDisc, density }} />
+          <Page {...{ inv, settings, c, label, ch: [], k: 1, n: 3, cols, showDisc, density }} />
         </div>, host)}
     </>
   );
 }
 
-function Page({ inv, settings, c, label, ch, k, n, cols, showDisc, carry }: {
+function Page({ inv, settings, c, label, ch, k, n, cols, showDisc, carry, density = 0 }: {
   inv: Invoice; settings: BillingData["settings"]; c: Totals; label: string; ch: number[]; k: number; n: number; cols: string; showDisc: boolean;
   /** Tax and amount of every earlier page, shown at the top of this page. */
   carry?: { tax: number; amount: number };
+  density?: number;
 }) {
   const lang = inv.lang, T = (x: string) => tr(lang, x);
   const seller = sellerOfInvoice(settings, inv), b = bizFor(seller.biz, lang), bk = seller.bank, last = k === n - 1, g = { gridTemplateColumns: cols };
@@ -96,7 +106,7 @@ function Page({ inv, settings, c, label, ch, k, n, cols, showDisc, carry }: {
   const shipName = inv.shipSame ? inv.cust.name : inv.ship.name, shipAddr = inv.shipSame ? inv.cust.address : inv.ship.address;
 
   return (
-    <div className={`paper${inv.status === "cancelled" ? " cancelled" : ""}`}>
+    <div className={`paper${inv.status === "cancelled" ? " cancelled" : ""}${density ? " d" + density : ""}`}>
       <div className="pbox">
         {(inv.heading ?? DEFAULT_HEADING).trim() && <h2 className="p-title">{(inv.heading ?? DEFAULT_HEADING).trim()}</h2>}
         <div className="p-head">
