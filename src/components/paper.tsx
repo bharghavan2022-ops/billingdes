@@ -67,21 +67,19 @@ export function Paper({ inv, settings, label }: { inv: Invoice; settings: Billin
       {chunks.map((ch, k) => <Page key={k} {...{ inv, settings, c, label, ch, k, n: chunks.length, cols, showDisc }} />)}
       {host && createPortal(
         <div ref={ruler} className="p-ruler" aria-hidden="true">
-          <Page {...{ inv, settings, c, label, ch: all, k: 0, n: 1, cols, showDisc }} measure />
-          <Page {...{ inv, settings, c, label, ch: [], k: 0, n: 2, cols, showDisc }} measure />
-          <Page {...{ inv, settings, c, label, ch: [], k: 1, n: 2, cols, showDisc }} measure />
+          <Page {...{ inv, settings, c, label, ch: all, k: 0, n: 1, cols, showDisc }} />
+          <Page {...{ inv, settings, c, label, ch: [], k: 0, n: 2, cols, showDisc }} />
+          <Page {...{ inv, settings, c, label, ch: [], k: 1, n: 2, cols, showDisc }} />
         </div>, host)}
     </>
   );
 }
 
-function Page({ inv, settings, c, label, ch, k, n, cols, showDisc, measure }: {
-  inv: Invoice; settings: BillingData["settings"]; c: Totals; label: string; ch: number[]; k: number; n: number; cols: string; showDisc: boolean; measure?: boolean;
+function Page({ inv, settings, c, label, ch, k, n, cols, showDisc }: {
+  inv: Invoice; settings: BillingData["settings"]; c: Totals; label: string; ch: number[]; k: number; n: number; cols: string; showDisc: boolean;
 }) {
   const lang = inv.lang, T = (x: string) => tr(lang, x);
   const seller = sellerOfInvoice(settings, inv), b = bizFor(seller.biz, lang), bk = seller.bank, last = k === n - 1, g = { gridTemplateColumns: cols };
-  // On the last page of a longer bill the totals follow the rows instead of sitting at the page bottom, so no long blank gap is left.
-  const tight = last && n > 1 && !measure;
   const paid = invPaid(inv), bal = round2(inv.grand - paid), hasBank = bk.acc || bk.ifsc || bk.holder || bk.customerId;
   const taxRows = c.intra
     ? c.groups.map((x) => (<Fragment key={x.rate}><div><span>CGST @{trimNum(x.rate / 2, 3)}%</span><span>₹{plain(x.cgst)}</span></div><div><span>SGST @{trimNum(x.rate / 2, 3)}%</span><span>₹{plain(x.sgst)}</span></div></Fragment>))
@@ -90,7 +88,7 @@ function Page({ inv, settings, c, label, ch, k, n, cols, showDisc, measure }: {
   const shipName = inv.shipSame ? inv.cust.name : inv.ship.name, shipAddr = inv.shipSame ? inv.cust.address : inv.ship.address;
 
   return (
-    <div className={`paper${inv.status === "cancelled" ? " cancelled" : ""}${tight ? " tight" : ""}`}>
+    <div className={`paper${inv.status === "cancelled" ? " cancelled" : ""}`}>
       <div className="pbox">
         {(inv.heading ?? DEFAULT_HEADING).trim() && <h2 className="p-title">{(inv.heading ?? DEFAULT_HEADING).trim()}</h2>}
         <div className="p-head">

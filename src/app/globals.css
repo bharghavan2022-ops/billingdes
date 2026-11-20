@@ -247,6 +247,5 @@ a.btn.primary{color:var(--accent-ink)}
 .savebar{position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 14px;padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:13px}
 .savebar.dirty{background:#fff7e0;border-color:#e3c36a}
 
-.paper.tight .p-items,.paper.tight .p-body{flex:none}
 .p-foot.cont .rr{min-height:0;justify-content:flex-end}
 .p-contnote{padding:5px 10px;text-align:right;font-size:10px;color:#555;align-self:flex-end}
