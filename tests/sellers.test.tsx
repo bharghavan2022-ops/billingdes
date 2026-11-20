@@ -232,3 +232,17 @@ describe("account number correction", () => {
     expect(db.settings.sellers[1].bank.acc).toBe("11112222333344");
   });
 });
+
+describe("page subtotal on the next page", () => {
+  it("labels the carried subtotal as the subtotal of the earlier page(s), in English and Tamil", () => {
+    const db = seed();
+    const inv = db.invoices[0];
+    inv.lines = Array.from({ length: 70 }, (_, i) => ({ ...inv.lines[0], name: "Item " + i, qty: 1, rate: 10 + i }));
+    const en = renderToStaticMarkup(<Paper inv={inv} settings={db.settings} label="" />);
+    expect(en).toContain("SUBTOTAL OF PAGE 1");
+    expect(en).toContain("SUBTOTAL OF PAGES 1–2");
+    expect(en).not.toContain("BROUGHT FORWARD");
+    inv.lang = "ta";
+    expect(renderToStaticMarkup(<Paper inv={inv} settings={db.settings} label="" />)).toContain("துணை மொத்தம் – பக்கம் 1");
+  });
+});

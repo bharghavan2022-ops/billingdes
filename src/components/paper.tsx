@@ -38,10 +38,11 @@ export function Paper({ inv, settings, label }: { inv: Invoice; settings: Billin
   const all = inv.lines.map((_, i) => i);
   const ruler = useRef<HTMLDivElement>(null);
   const [measured, setMeasured] = useState<number[][] | null>(null);
-  // How tightly the rows are set: 0 normal, 1 and 2 a little denser. A bill that only just overflows one page is set denser so it fits on one, instead of leaving a mostly empty second page.
+  // How tightly the rows are set: 0 normal, 1 and 2 a little denser. A bill is set denser when that saves a page, instead of leaving a mostly empty last page.
   const [density, setDensity] = useState(0);
   const settled = useRef(false);
-  useLayoutEffectSafe(() => { settled.current = false; setDensity(0); }, [inv, settings, label]);
+  const counts = useRef<number[]>([]);
+  useLayoutEffectSafe(() => { settled.current = false; counts.current = []; setDensity(0); }, [inv, settings, label]);
   const [host, setHost] = useState<HTMLElement | null>(null);
   useEffect(() => setHost(document.body), []);
 
@@ -58,14 +59,21 @@ export function Paper({ inv, settings, label }: { inv: Invoice; settings: Billin
       // Room for rows on a one-page bill, on the first page, on the last page and on a page in between (each has different top and bottom rows).
       const single = body(pages[0]) - SAFETY;
       const next = paginate(rows, { single, first: body(pages[1]) - SAFETY, last: body(pages[2]) - SAFETY, mid: body(pages[3]) - SAFETY });
-      if (next.length > 1 && !settled.current && rows.reduce((a, b) => a + b, 0) <= single * 1.4) {
-        if (density < 2) { setDensity(density + 1); return; }
-        settled.current = true; setDensity(0); return; // even the densest setting does not fit one page: use the normal one
+      if (!settled.current) {
+        // Try the denser settings, keep the one that needs the fewest pages (the lowest density on a tie).
+        counts.current[density] = next.length;
+        if (next.length > 1 && density < 2) { setDensity(density + 1); return; }
+        const best = counts.current.reduce((bi, n, i) => (n < counts.current[bi] ? i : bi), 0);
+        settled.current = true;
+        if (best !== density) { setDensity(best); return; }
       }
       setMeasured((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
     };
     measure();
-    document.fonts?.ready.then(measure);
+    // Measure again once the fonts are in, unless the setting has changed meanwhile.
+    let stale = false;
+    document.fonts?.ready.then(() => { if (!stale) measure(); });
+    return () => { stale = true; };
   }, [host, inv, settings, label, density]);
 
   const rest = [...all], fallback: number[][] = [];
@@ -124,7 +132,7 @@ function Page({ inv, settings, c, label, ch, k, n, cols, showDisc, carry, densit
         </div>
         <div className="p-items">
           <div className="r rh" style={g}><div className="c">{T("S.NO.")}</div><div className="c">{T("ITEMS")}</div><div className="c">{T("HSN")}</div><div className="c n">{T("QTY.")}</div><div className="c n">{T("RATE")}</div>{showDisc && <div className="c n">{T("DISC.")}</div>}<div className="c n">{T("TAX")}</div><div className="c n">{T("AMOUNT")}</div></div>
-          {k > 0 && <div className="r rs carry" style={g}><div className="c"></div><div className="c">{T("BROUGHT FORWARD")} <small>{T("Page")} {k === 1 ? "1" : `1–${k}`}</small></div><div className="c"></div><div className="c"></div><div className="c"></div>{showDisc && <div className="c"></div>}<div className="c n">₹{plain(carry?.tax ?? 0)}</div><div className="c n">₹{plain(carry?.amount ?? 0)}</div></div>}
+          {k > 0 && <div className="r rs carry" style={g}><div className="c"></div><div className="c">{T(k === 1 ? "SUBTOTAL OF PAGE" : "SUBTOTAL OF PAGES")} {k === 1 ? "1" : `1–${k}`}</div><div className="c"></div><div className="c"></div><div className="c"></div>{showDisc && <div className="c"></div>}<div className="c n">₹{plain(carry?.tax ?? 0)}</div><div className="c n">₹{plain(carry?.amount ?? 0)}</div></div>}
           <div className="p-body">
             {ch.map((i) => {
               const l = inv.lines[i], r = c.rows[i];
