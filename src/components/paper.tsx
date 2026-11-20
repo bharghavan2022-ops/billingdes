@@ -12,9 +12,10 @@ const useLayoutEffectSafe = typeof window !== "undefined" ? useLayoutEffect : us
 const SAFETY = 8;
 
 /** Split the rows over pages from the real heights of the rows, so no row is ever cut off or lost at the bottom of a page. */
-export function paginate(rows: number[], avail: { full: number; last: number }, minLast = 2): number[][] {
+export function paginate(rows: number[], avail: { single: number; full: number; last: number }, minLast = 2): number[][] {
   const out: number[][] = [];
   const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
+  if (sum(rows) <= avail.single) return [rows.map((_, i) => i)];
   let i = 0;
   while (i < rows.length) {
     const rest = rows.slice(i);
@@ -22,7 +23,7 @@ export function paginate(rows: number[], avail: { full: number; last: number }, 
     // Fill the page as full as it will go...
     let used = 0, take = 0;
     while (take < rest.length && (take === 0 || used + rest[take] <= avail.full)) used += rest[take++];
-    // ...but leave a few rows for the page that carries the totals, so it is never just a footer.
+    // ...but leave a couple of rows for the last page, so it is never just a footer.
     take = Math.max(1, Math.min(take, rest.length - Math.min(minLast, rest.length - 1)));
     out.push(Array.from({ length: take }, (_, j) => i + j));
     i += take;
@@ -45,12 +46,12 @@ export function Paper({ inv, settings, label }: { inv: Invoice; settings: Billin
     const measure = () => {
       const el = ruler.current;
       if (!el) return;
-      const h = (sel: string) => el.querySelector<HTMLElement>(sel)?.getBoundingClientRect().height ?? 0;
-      const rows = Array.from(el.querySelectorAll<HTMLElement>(".p-body .r")).map((r) => r.getBoundingClientRect().height);
-      if (rows.length !== inv.lines.length) return;
-      // The room left for rows on a page that carries the totals; a page without them gets the totals' space instead (its page subtotal row is as tall as the subtotal row).
-      const last = h(".p-body") - SAFETY;
-      const next = paginate(rows, { full: last + h(".p-foot"), last });
+      const pages = el.querySelectorAll<HTMLElement>(".paper");
+      const body = (pg?: HTMLElement) => pg?.querySelector<HTMLElement>(".p-body")?.getBoundingClientRect().height ?? 0;
+      const rows = Array.from(pages[0]?.querySelectorAll<HTMLElement>(".p-body .r") ?? []).map((r) => r.getBoundingClientRect().height);
+      if (rows.length !== inv.lines.length || pages.length < 3) return;
+      // Room for rows on a one-page bill, on a page that continues, and on the last page of a longer bill (each has different footers).
+      const next = paginate(rows, { single: body(pages[0]) - SAFETY, full: body(pages[1]) - SAFETY, last: body(pages[2]) - SAFETY });
       setMeasured((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
     };
     measure();
@@ -66,25 +67,30 @@ export function Paper({ inv, settings, label }: { inv: Invoice; settings: Billin
       {chunks.map((ch, k) => <Page key={k} {...{ inv, settings, c, label, ch, k, n: chunks.length, cols, showDisc }} />)}
       {host && createPortal(
         <div ref={ruler} className="p-ruler" aria-hidden="true">
-          <Page {...{ inv, settings, c, label, ch: all, k: 0, n: 1, cols, showDisc }} />
+          <Page {...{ inv, settings, c, label, ch: all, k: 0, n: 1, cols, showDisc }} measure />
+          <Page {...{ inv, settings, c, label, ch: [], k: 0, n: 2, cols, showDisc }} measure />
+          <Page {...{ inv, settings, c, label, ch: [], k: 1, n: 2, cols, showDisc }} measure />
         </div>, host)}
     </>
   );
 }
 
-function Page({ inv, settings, c, label, ch, k, n, cols, showDisc }: {
-  inv: Invoice; settings: BillingData["settings"]; c: Totals; label: string; ch: number[]; k: number; n: number; cols: string; showDisc: boolean;
+function Page({ inv, settings, c, label, ch, k, n, cols, showDisc, measure }: {
+  inv: Invoice; settings: BillingData["settings"]; c: Totals; label: string; ch: number[]; k: number; n: number; cols: string; showDisc: boolean; measure?: boolean;
 }) {
   const lang = inv.lang, T = (x: string) => tr(lang, x);
   const seller = sellerOfInvoice(settings, inv), b = bizFor(seller.biz, lang), bk = seller.bank, last = k === n - 1, g = { gridTemplateColumns: cols };
+  // On the last page of a longer bill the totals follow the rows instead of sitting at the page bottom, so no long blank gap is left.
+  const tight = last && n > 1 && !measure;
   const paid = invPaid(inv), bal = round2(inv.grand - paid), hasBank = bk.acc || bk.ifsc || bk.holder || bk.customerId;
   const taxRows = c.intra
     ? c.groups.map((x) => (<Fragment key={x.rate}><div><span>CGST @{trimNum(x.rate / 2, 3)}%</span><span>₹{plain(x.cgst)}</span></div><div><span>SGST @{trimNum(x.rate / 2, 3)}%</span><span>₹{plain(x.sgst)}</span></div></Fragment>))
     : c.groups.map((x) => <div key={x.rate}><span>IGST @{trimNum(x.rate, 2)}%</span><span>₹{plain(x.tax)}</span></div>);
+  const bankBlock = hasBank && <div className="sec"><h4>{T("BANK DETAILS")}</h4><div>{T("Name")}: {bk.holder}</div><div>{T("IFSC Code")}: {bk.ifsc}</div><div>{T("Account No")}: {bk.acc}</div>{bk.customerId && <div>{T("Customer ID")}: {bk.customerId}</div>}{bk.bank && <div>{T("Bank")}: {bk.bank}</div>}</div>;
   const shipName = inv.shipSame ? inv.cust.name : inv.ship.name, shipAddr = inv.shipSame ? inv.cust.address : inv.ship.address;
 
   return (
-    <div className={`paper${inv.status === "cancelled" ? " cancelled" : ""}`}>
+    <div className={`paper${inv.status === "cancelled" ? " cancelled" : ""}${tight ? " tight" : ""}`}>
       <div className="pbox">
         {(inv.heading ?? DEFAULT_HEADING).trim() && <h2 className="p-title">{(inv.heading ?? DEFAULT_HEADING).trim()}</h2>}
         <div className="p-head">
@@ -115,14 +121,19 @@ function Page({ inv, settings, c, label, ch, k, n, cols, showDisc }: {
               );
             })}
           </div>
-          {last
-            ? <div className="r rs" style={g}><div className="c"></div><div className="c">{n > 1 ? T("SUBTOTAL (ALL PAGES)") : T("SUBTOTAL")}</div><div className="c"></div><div className="c n">{new Set(inv.lines.map((l) => l.unit)).size === 1 ? trimNum(c.qty, 2) : ""}</div><div className="c"></div>{showDisc && <div className="c"></div>}<div className="c n">₹{plain(c.tax)}</div><div className="c n">₹{plain(c.total)}</div></div>
-            : <div className="r rs" style={g}><div className="c"></div><div className="c">{T("PAGE SUBTOTAL")} <small>{T("Continued on next page")}</small></div><div className="c"></div><div className="c"></div><div className="c"></div>{showDisc && <div className="c"></div>}<div className="c n">₹{plain(ch.reduce((a, i) => a + c.rows[i].tax, 0))}</div><div className="c n">₹{plain(ch.reduce((a, i) => a + c.rows[i].amount, 0))}</div></div>}
+          {n > 1 && <div className="r rs" style={g}><div className="c"></div><div className="c">{T("PAGE SUBTOTAL")}{!last && <> <small>{T("Continued on next page")}</small></>}</div><div className="c"></div><div className="c"></div><div className="c"></div>{showDisc && <div className="c"></div>}<div className="c n">₹{plain(ch.reduce((a, i) => a + c.rows[i].tax, 0))}</div><div className="c n">₹{plain(ch.reduce((a, i) => a + c.rows[i].amount, 0))}</div></div>}
+          {last && <div className="r rs" style={g}><div className="c"></div><div className="c">{n > 1 ? T("SUBTOTAL (ALL PAGES)") : T("SUBTOTAL")}</div><div className="c"></div><div className="c n">{new Set(inv.lines.map((l) => l.unit)).size === 1 ? trimNum(c.qty, 2) : ""}</div><div className="c"></div>{showDisc && <div className="c"></div>}<div className="c n">₹{plain(c.tax)}</div><div className="c n">₹{plain(c.total)}</div></div>}
         </div>
+        {!last && (
+          <div className="p-foot cont">
+            <div className="l">{bankBlock}</div>
+            <div className="rr"><div className="p-contnote">{T("Continued on next page")}</div></div>
+          </div>
+        )}
         {last && (
           <div className="p-foot">
             <div className="l">
-              {hasBank && <div className="sec"><h4>{T("BANK DETAILS")}</h4><div>{T("Name")}: {bk.holder}</div><div>{T("IFSC Code")}: {bk.ifsc}</div><div>{T("Account No")}: {bk.acc}</div>{bk.customerId && <div>{T("Customer ID")}: {bk.customerId}</div>}{bk.bank && <div>{T("Bank")}: {bk.bank}</div>}</div>}
+              {bankBlock}
               {inv.notes && <div className="sec"><h4>{T("NOTES")}</h4><pre>{inv.notes}</pre></div>}
               {settings.terms && <div className="sec"><h4>{T("TERMS AND CONDITIONS")}</h4><pre>{settings.terms}</pre></div>}
             </div>
